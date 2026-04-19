@@ -9,3 +9,4 @@ pub mod diff_format;
 pub mod merge;
 pub mod remote;
 pub mod dot_rev;
+pub mod snapshot_diff;
