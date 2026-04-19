@@ -271,3 +271,90 @@ where
     Ok(id)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::object_store::in_memory::InMemoryObjectStore;
+
+    fn insert(store: &mut InMemoryObjectStore, lines: &[&str]) -> ObjectId {
+        let content = lines.join("\n");
+        store.insert(content.as_bytes()).unwrap()
+    }
+
+    fn make_files(
+        store: &mut InMemoryObjectStore,
+        paths_and_lines: &[(&str, &[&str])],
+    ) -> BTreeMap<PathBuf, ObjectId> {
+        paths_and_lines
+            .iter()
+            .map(|(p, lines)| (PathBuf::from(p), insert(store, lines)))
+            .collect()
+    }
+
+    #[test]
+    fn test_clean_merge_different_files() {
+        let mut store = InMemoryObjectStore::default();
+        let base = make_files(&mut store, &[("a.txt", &["hello"])]);
+        let ours = make_files(&mut store, &[
+            ("a.txt", &["hello"]),
+            ("b.txt", &["new file"]),
+        ]);
+        let theirs = make_files(&mut store, &[
+            ("a.txt", &["hello"]),
+            ("c.txt", &["another"]),
+        ]);
+
+        let result = three_way_merge(&mut store, &base, &ours, &theirs).unwrap();
+        assert!(result.is_clean());
+        assert_eq!(result.merged_files.len(), 3);
+    }
+
+    #[test]
+    fn test_conflict_both_modified() {
+        let mut store = InMemoryObjectStore::default();
+        let base = make_files(&mut store, &[("a.txt", &["original"])]);
+        let ours = make_files(&mut store, &[("a.txt", &["our version"])]);
+        let theirs = make_files(&mut store, &[("a.txt", &["their version"])]);
+
+        let result = three_way_merge(&mut store, &base, &ours, &theirs).unwrap();
+        assert!(result.has_conflicts());
+        assert_eq!(result.conflicts[0].conflict_type, ConflictType::BothModified);
+    }
+
+    #[test]
+    fn test_only_ours_modified() {
+        let mut store = InMemoryObjectStore::default();
+        let base = make_files(&mut store, &[("a.txt", &["base"])]);
+        let ours = make_files(&mut store, &[("a.txt", &["modified"])]);
+        let theirs = make_files(&mut store, &[("a.txt", &["base"])]);
+
+        let result = three_way_merge(&mut store, &base, &ours, &theirs).unwrap();
+        assert!(result.is_clean());
+        let merged_id = result.merged_files[&PathBuf::from("a.txt")];
+        let data = store.read(merged_id).unwrap().unwrap();
+        assert_eq!(std::str::from_utf8(&data).unwrap(), "modified");
+    }
+
+    #[test]
+    fn test_file_deleted_by_ours() {
+        let mut store = InMemoryObjectStore::default();
+        let base = make_files(&mut store, &[("a.txt", &["content"])]);
+        let ours: BTreeMap<PathBuf, ObjectId> = BTreeMap::new();
+        let theirs = make_files(&mut store, &[("a.txt", &["modified"])]);
+
+        let result = three_way_merge(&mut store, &base, &ours, &theirs).unwrap();
+        assert!(result.has_conflicts());
+        assert_eq!(result.conflicts[0].conflict_type, ConflictType::ModifiedDeleted);
+    }
+
+    #[test]
+    fn test_both_added_same_content() {
+        let mut store = InMemoryObjectStore::default();
+        let base: BTreeMap<PathBuf, ObjectId> = BTreeMap::new();
+        let ours = make_files(&mut store, &[("a.txt", &["same"])]);
+        let theirs = make_files(&mut store, &[("a.txt", &["same"])]);
+
+        let result = three_way_merge(&mut store, &base, &ours, &theirs).unwrap();
+        assert!(result.is_clean());
+    }
+}
