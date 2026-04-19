@@ -5,3 +5,4 @@ pub mod directory;
 pub mod snapshot;
 pub mod snapshot_ref;
 pub mod content_diff;
+pub mod diff_format;
