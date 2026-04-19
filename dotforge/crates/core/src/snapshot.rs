@@ -22,3 +22,49 @@ impl SnapShot {
         self.previous.iter().copied()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_root_snapshot() {
+        let dir_id = ObjectId::from(b"dir".as_ref());
+        let snap = SnapShot::new(dir_id, "init".to_string(), BTreeSet::new());
+        assert!(snap.is_root());
+        assert_eq!(snap.parents().count(), 0);
+    }
+
+    #[test]
+    fn test_snapshot_with_parent() {
+        let dir_id = ObjectId::from(b"dir".as_ref());
+        let parent_id = ObjectId::from(b"parent".as_ref());
+        let mut parents = BTreeSet::new();
+        parents.insert(parent_id);
+        let snap = SnapShot::new(dir_id, "second commit".to_string(), parents);
+        assert!(!snap.is_root());
+        assert_eq!(snap.parents().count(), 1);
+    }
+
+    #[test]
+    fn test_merge_snapshot_two_parents() {
+        let dir_id = ObjectId::from(b"dir".as_ref());
+        let p1 = ObjectId::from(b"parent1".as_ref());
+        let p2 = ObjectId::from(b"parent2".as_ref());
+        let mut parents = BTreeSet::new();
+        parents.insert(p1);
+        parents.insert(p2);
+        let snap = SnapShot::new(dir_id, "merge".to_string(), parents);
+        assert_eq!(snap.parents().count(), 2);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let dir_id = ObjectId::from(b"dir".as_ref());
+        let snap = SnapShot::new(dir_id, "test".to_string(), BTreeSet::new());
+        let json = serde_json::to_string(&snap).unwrap();
+        let back: SnapShot = serde_json::from_str(&json).unwrap();
+        assert_eq!(snap, back);
+    }
+}
