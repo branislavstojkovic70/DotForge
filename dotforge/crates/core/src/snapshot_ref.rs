@@ -44,3 +44,42 @@ impl std::fmt::Display for SnapshotRef {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_head() {
+        let r: SnapshotRef = "HEAD".parse().unwrap();
+        assert_eq!(r, SnapshotRef::Head);
+    }
+
+    #[test]
+    fn test_head_parent() {
+        let r: SnapshotRef = "HEAD~3".parse().unwrap();
+        assert_eq!(r, SnapshotRef::HeadParent(3));
+    }
+
+    #[test]
+    fn test_branch() {
+        let r: SnapshotRef = "main".parse().unwrap();
+        assert_eq!(r, SnapshotRef::Branch("main".to_string()));
+    }
+
+    #[test]
+    fn test_branch_feature() {
+        let r: SnapshotRef = "feature-x".parse().unwrap();
+        assert_eq!(r, SnapshotRef::Branch("feature-x".to_string()));
+    }
+
+    #[test]
+    fn test_display_head() {
+        assert_eq!(SnapshotRef::Head.to_string(), "HEAD");
+    }
+
+    #[test]
+    fn test_display_parent() {
+        assert_eq!(SnapshotRef::HeadParent(2).to_string(), "HEAD~2");
+    }
+}
