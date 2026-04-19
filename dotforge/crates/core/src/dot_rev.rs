@@ -275,3 +275,76 @@ impl DotRev {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+    use crate::object_store::ObjectStore;
+
+    #[test]
+    fn test_init_creates_structure() {
+        let dir = tempdir().unwrap();
+        let dot = DotRev::init(dir.path(), "test-repo".into(), "0x123".into()).unwrap();
+        assert!(dot.store_path().exists());
+        assert!(dot.state_path().exists());
+        assert!(dot.ignores_path().exists());
+    }
+
+    #[test]
+    fn test_find_repo() {
+        let dir = tempdir().unwrap();
+        DotRev::init(dir.path(), "test-repo".into(), "0x123".into()).unwrap();
+        let found = DotRev::find(dir.path()).unwrap();
+        assert_eq!(found.repo_root(), dir.path());
+    }
+
+    #[test]
+    fn test_load_and_save_state() {
+        let dir = tempdir().unwrap();
+        let dot = DotRev::init(dir.path(), "my-repo".into(), "0xabc".into()).unwrap();
+        let mut state = dot.load_state().unwrap();
+        state.current_branch = "feature-x".to_string();
+        dot.save_state(&state).unwrap();
+        let loaded = dot.load_state().unwrap();
+        assert_eq!(loaded.current_branch, "feature-x");
+    }
+
+    #[test]
+    fn test_snapshot_roundtrip() {
+        let dir = tempdir().unwrap();
+        let dot = DotRev::init(dir.path(), "repo".into(), "0x0".into()).unwrap();
+        let mut store = dot.open_store().unwrap();
+
+        let directory = Directory::default();
+        let dir_id = dot.insert_directory(&mut store, &directory).unwrap();
+
+        let snap = SnapShot::new(dir_id, "init".to_string(), BTreeSet::new());
+        let snap_id = dot.insert_snapshot(&mut store, &snap).unwrap();
+
+        let loaded = dot.get_snapshot(&store, snap_id).unwrap();
+        assert_eq!(loaded.message, "init");
+    }
+
+    #[test]
+    fn test_merge_state() {
+        let dir = tempdir().unwrap();
+        let dot = DotRev::init(dir.path(), "repo".into(), "0x0".into()).unwrap();
+        assert!(!dot.is_merge_in_progress());
+    }
+
+    #[test]
+    fn test_log_single_commit() {
+        let dir = tempdir().unwrap();
+        let dot = DotRev::init(dir.path(), "repo".into(), "0x0".into()).unwrap();
+        let mut store = dot.open_store().unwrap();
+
+        let dir_id = dot.insert_directory(&mut store, &Directory::default()).unwrap();
+        let snap = SnapShot::new(dir_id, "first".to_string(), BTreeSet::new());
+        let snap_id = dot.insert_snapshot(&mut store, &snap).unwrap();
+
+        let log = dot.log(&store, snap_id, 10).unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].1.message, "first");
+    }
+}
