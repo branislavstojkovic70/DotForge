@@ -8,3 +8,4 @@ pub mod content_diff;
 pub mod diff_format;
 pub mod merge;
 pub mod remote;
+pub mod dot_rev;
