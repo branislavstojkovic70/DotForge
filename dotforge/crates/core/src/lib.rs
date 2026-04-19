@@ -6,3 +6,4 @@ pub mod snapshot;
 pub mod snapshot_ref;
 pub mod content_diff;
 pub mod diff_format;
+pub mod merge;
