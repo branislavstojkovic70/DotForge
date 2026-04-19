@@ -50,43 +50,39 @@ pub fn diff_objects<S: ObjectStore>(
 pub fn myers_diff(old: &[String], new: &[String]) -> Vec<Change> {
     let n = old.len();
     let m = new.len();
-    let max = n + m;
 
-    if max == 0 {
-        return vec![];
-    }
-
-    let mut v = vec![0isize; 2 * max + 1];
-    let mut trace: Vec<Vec<isize>> = vec![];
-
-    'outer: for d in 0..=(max as isize) {
-        trace.push(v.clone());
-        let mut k = -d;
-        while k <= d {
-            let idx = (k + max as isize) as usize;
-            let mut x = if k == -d
-                || (k != d && v[(idx as isize - 1) as usize] < v[idx + 1])
-            {
-                v[idx + 1]
+    // build LCS table
+    let mut dp = vec![vec![0usize; m + 1]; n + 1];
+    for i in (0..n).rev() {
+        for j in (0..m).rev() {
+            dp[i][j] = if old[i] == new[j] {
+                dp[i + 1][j + 1] + 1
             } else {
-                v[(idx as isize - 1) as usize] + 1
+                dp[i + 1][j].max(dp[i][j + 1])
             };
-            let mut y = x - k;
-            while x < n as isize && y < m as isize
-                && old[x as usize] == new[y as usize]
-            {
-                x += 1;
-                y += 1;
-            }
-            v[idx] = x;
-            if x >= n as isize && y >= m as isize {
-                break 'outer;
-            }
-            k += 2;
         }
     }
 
-    backtrack(&trace, old, new, max)
+    // backtrack
+    let mut changes = vec![];
+    let mut i = 0;
+    let mut j = 0;
+
+    while i < n || j < m {
+        if i < n && j < m && old[i] == new[j] {
+            changes.push(Change::Unchanged(old[i].clone()));
+            i += 1;
+            j += 1;
+        } else if j < m && (i >= n || dp[i][j + 1] >= dp[i + 1][j]) {
+            changes.push(Change::Added(new[j].clone()));
+            j += 1;
+        } else {
+            changes.push(Change::Removed(old[i].clone()));
+            i += 1;
+        }
+    }
+
+    changes
 }
 
 fn backtrack(
@@ -105,7 +101,8 @@ fn backtrack(
         let idx = (k + max as isize) as usize;
 
         let prev_k = if k == -d
-            || (k != d && v[(idx as isize - 1) as usize] < v[idx + 1])
+            || (k != d && v.get((idx as isize - 1) as usize).copied().unwrap_or(-1)
+                < v.get(idx + 1).copied().unwrap_or(-1))
         {
             k + 1
         } else {
@@ -123,10 +120,10 @@ fn backtrack(
         }
 
         if d > 0 {
-            if x == prev_x + 1 {
+            if x > prev_x {
                 changes.push(Change::Removed(old[(x - 1) as usize].clone()));
                 x -= 1;
-            } else {
+            } else if y > prev_y {
                 changes.push(Change::Added(new[(y - 1) as usize].clone()));
                 y -= 1;
             }
@@ -141,4 +138,54 @@ fn backtrack(
 
     changes.reverse();
     changes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(lines: &[&str]) -> Vec<String> {
+        lines.iter().map(|l| l.to_string()).collect()
+    }
+
+    #[test]
+    fn test_identical() {
+        let lines = s(&["a", "b", "c"]);
+        let diff = myers_diff(&lines, &lines);
+        assert!(diff.iter().all(|c| matches!(c, Change::Unchanged(_))));
+    }
+
+    #[test]
+    fn test_added_line() {
+        let old = s(&["a", "b"]);
+        let new = s(&["a", "b", "c"]);
+        let diff = myers_diff(&old, &new);
+        assert!(diff.iter().any(|c| matches!(c, Change::Added(l) if l == "c")));
+    }
+
+    #[test]
+    fn test_removed_line() {
+        let old = s(&["a", "b", "c"]);
+        let new = s(&["a", "c"]);
+        let diff = myers_diff(&old, &new);
+        assert!(diff.iter().any(|c| matches!(c, Change::Removed(l) if l == "b")));
+    }
+
+    #[test]
+    fn test_empty_old() {
+        let old = s(&[]);
+        let new = s(&["a", "b"]);
+        let diff = myers_diff(&old, &new);
+        assert_eq!(diff.len(), 2);
+        assert!(diff.iter().all(|c| matches!(c, Change::Added(_))));
+    }
+
+    #[test]
+    fn test_empty_new() {
+        let old = s(&["a", "b"]);
+        let new = s(&[]);
+        let diff = myers_diff(&old, &new);
+        assert_eq!(diff.len(), 2);
+        assert!(diff.iter().all(|c| matches!(c, Change::Removed(_))));
+    }
 }
