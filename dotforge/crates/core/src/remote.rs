@@ -318,3 +318,45 @@ pub mod in_memory_remote {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::object_store::ObjectStore;
+    use super::*;
+    use super::in_memory_remote::InMemoryRemote;
+    use crate::object_store::in_memory::InMemoryObjectStore;
+    use crate::snapshot::SnapShot;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn test_push_and_pull_branch() {
+        let mut local_store = InMemoryObjectStore::default();
+        let remote = InMemoryRemote::default();
+
+        let dir_id = local_store.insert(
+            serde_json::to_vec(&crate::directory::Directory::default()).unwrap().as_slice()
+        ).unwrap();
+
+        let snap = SnapShot::new(dir_id, "init".to_string(), BTreeSet::new());
+        let snap_id = local_store.insert(
+            serde_json::to_vec(&snap).unwrap().as_slice()
+        ).unwrap();
+
+        sync::push_branch(&remote, &mut local_store, "main", snap_id, false).unwrap();
+
+        assert_eq!(remote.get_branch("main").unwrap(), Some(snap_id));
+
+        let mut fresh_store = InMemoryObjectStore::default();
+        let pulled = sync::pull_branch(&remote, &mut fresh_store, "main").unwrap();
+        assert_eq!(pulled, Some(snap_id));
+        assert!(fresh_store.has(snap_id).unwrap());
+    }
+
+    #[test]
+    fn test_pull_nonexistent_branch() {
+        let remote = InMemoryRemote::default();
+        let mut store = InMemoryObjectStore::default();
+        let result = sync::pull_branch(&remote, &mut store, "nonexistent").unwrap();
+        assert_eq!(result, None);
+    }
+}
