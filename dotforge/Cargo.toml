@@ -1,9 +1,12 @@
 [workspace]
 members = [
     "crates/core",
-    "crates/contract",
     "crates/backend",
     "crates/cli",
+]
+
+exclude = [
+    "crates/pvm-contract",
 ]
 resolver = "2"
 
