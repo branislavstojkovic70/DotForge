@@ -3,10 +3,11 @@ members = [
     "crates/core",
     "crates/backend",
     "crates/cli",
+    "crates/mcp-server",
 ]
-
 exclude = [
     "crates/pvm-contract",
+    "crates/project",
 ]
 resolver = "2"
 
