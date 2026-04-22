@@ -78,35 +78,35 @@ const theme = createTheme({
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: {
+        root: ({ ownerState }) => ({
           borderRadius: 12,
           ":focus-visible": {
             outline: `2px solid ${alpha("#E6007A", 0.7)}`,
             outlineOffset: 2,
           },
-        },
-        containedPrimary: {
-          backgroundColor: "#231239",
-          color: "#FFFFFF",
-          "&:hover": { backgroundColor: "#3A1D5A" },
-        },
-        containedSecondary: {
-          backgroundColor: "#6A7071",
-          color: "#141414",
-          "&:hover": { backgroundColor: "#5A5F60" },
-        },
-        outlinedPrimary: {
-          borderColor: alpha("#231239", 0.6),
-          color: "#FFFFFF",
-          "&:hover": {
-            borderColor: "#231239",
-            backgroundColor: alpha("#231239", 0.08),
-          },
-        },
-        textPrimary: {
-          color: "#FFFFFF",
-          "&:hover": { backgroundColor: alpha("#231239", 0.08) },
-        },
+          ...(ownerState.variant === "contained" && ownerState.color === "primary" && {
+            backgroundColor: "#231239",
+            color: "#FFFFFF",
+            "&:hover": { backgroundColor: "#3A1D5A" },
+          }),
+          ...(ownerState.variant === "contained" && ownerState.color === "secondary" && {
+            backgroundColor: "#6A7071",
+            color: "#141414",
+            "&:hover": { backgroundColor: "#5A5F60" },
+          }),
+          ...(ownerState.variant === "outlined" && ownerState.color === "primary" && {
+            borderColor: alpha("#231239", 0.6),
+            color: "#FFFFFF",
+            "&:hover": {
+              borderColor: "#231239",
+              backgroundColor: alpha("#231239", 0.08),
+            },
+          }),
+          ...(ownerState.variant === "text" && ownerState.color === "primary" && {
+            color: "#FFFFFF",
+            "&:hover": { backgroundColor: alpha("#231239", 0.08) },
+          }),
+        }),
       },
     },
 
