@@ -4,11 +4,12 @@ import "./index.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "./theme";
+import Navbar from "./components/navbar";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <p className="text-2xl font-bold text-center mt-20">Home</p>,
+    element: <Navbar/>,
     children: [
       {},
     ],
