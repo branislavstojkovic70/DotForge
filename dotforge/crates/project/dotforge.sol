@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+interface DotForge {
+    function createOrg() external returns (uint64);
+    function addMember(uint64 orgId, address member, uint8 role) external;
+    function deposit(uint64 orgId, uint64 amount) external;
+    function createRepo(uint64 orgId) external returns (uint64);
+    function storeCommit(uint64 repoId, uint64 branchHash, uint64 cidHash) external;
+    function getBranch(uint64 repoId, uint64 branchHash) external view returns (uint64);
+    function createGrant(uint64 orgId, uint64 amount) external returns (uint64);
+    function assignGrant(uint64 grantId, address assignee) external;
+    function submitGrant(uint64 grantId) external;
+    function submitVerdict(uint64 grantId, bool approved) external;
+    function registerAuditor(address auditor) external;
+}
