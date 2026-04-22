@@ -5,11 +5,12 @@ use pallet_revive_uapi::{HostFnImpl as api, HostFn, StorageFlags};
 #[pvm_contract_macros::contract("DotForge.sol", allocator = "pico")]
 mod dotforge {
     use super::*;
-    use pvm_contract_types::Address;
+    use pvm_contract_types::{Address, Bytes};
 
     const PUSH_FEE: u64 = 10_000_000;
     const GRANT_FEE: u64 = 100_000_000;
 
+    // ── Storage key helpers ───────────────────────────────────────────────
 
     fn key1(ns: &[u8], k: u64) -> [u8; 32] {
         let mut data = [0u8; 40];
@@ -54,6 +55,8 @@ mod dotforge {
         api::hash_keccak_256(ns, &mut out);
         out
     }
+
+    // ── Scalar storage ────────────────────────────────────────────────────
 
     fn set_u64(key: &[u8; 32], val: u64) {
         api::set_storage(StorageFlags::empty(), key, &val.to_le_bytes());
@@ -107,17 +110,44 @@ mod dotforge {
         }
     }
 
+    // ── Bytes storage (za CID i keypair) ──────────────────────────────────
+    // Čuvamo: [len: 4 bajta LE][data: len bajta]
+    // Max 1024 bajta
+
+    fn set_bytes(key: &[u8; 32], val: &[u8]) {
+        let mut buf = [0u8; 1028];
+        let len = val.len().min(1024);
+        buf[..4].copy_from_slice(&(len as u32).to_le_bytes());
+        buf[4..4 + len].copy_from_slice(&val[..len]);
+        api::set_storage(StorageFlags::empty(), key, &buf[..4 + len]);
+    }
+
+    fn get_bytes(key: &[u8; 32]) -> Bytes {
+        let mut buf = [0u8; 1028];
+        let mut out: &mut [u8] = &mut buf;
+        if api::get_storage(StorageFlags::empty(), key, &mut out).is_err() {
+            return Bytes(alloc::vec![]);
+        }
+        let len = u32::from_le_bytes(buf[..4].try_into().unwrap_or([0u8; 4])) as usize;
+        let len = len.min(1024);
+        Bytes(buf[4..4 + len].to_vec())
+    }
+
     fn caller() -> Address {
         let mut raw = [0u8; 20];
         api::caller(&mut raw);
         Address(raw)
     }
 
+    // ── Constructor ───────────────────────────────────────────────────────
+
     #[pvm_contract_macros::constructor]
     pub fn new() -> Result<(), pvm_contract_types::EmptyError> {
         set_addr(&key_static(b"auditor_admin"), &caller().0);
         Ok(())
     }
+
+    // ── Org ───────────────────────────────────────────────────────────────
 
     #[pvm_contract_macros::method]
     pub fn create_org() -> u64 {
@@ -146,6 +176,8 @@ mod dotforge {
         set_u64(&key1(b"org_balance", org_id), bal + amount);
     }
 
+    // ── Repo ──────────────────────────────────────────────────────────────
+
     #[pvm_contract_macros::method]
     pub fn create_repo(org_id: u64) -> u64 {
         check_write(org_id, caller());
@@ -153,8 +185,11 @@ mod dotforge {
         let id = get_u64(&key_static(b"repo_count")) + 1;
         set_u64(&key_static(b"repo_count"), id);
         set_u64(&key1(b"repo_org", id), org_id);
+        deduct(org_id, PUSH_FEE);
         id
     }
+
+    // ── Legacy u64 commit (backward compat) ───────────────────────────────
 
     #[pvm_contract_macros::method]
     pub fn store_commit(repo_id: u64, branch_hash: u64, cid_hash: u64) {
@@ -173,6 +208,43 @@ mod dotforge {
         assert!(get_u8(&key2(b"mbr_role", org_id, &caller().0)) > 0);
         get_u64(&key2u(b"branches", repo_id, branch_hash))
     }
+
+    // ── Bytes commit (novi flow sa pravim fajlovima) ──────────────────────
+
+    #[pvm_contract_macros::method]
+    pub fn store_commit_cid(repo_id: u64, branch_hash: u64, cid: Bytes) {
+        let org_id = get_u64(&key1(b"repo_org", repo_id));
+        assert!(org_id > 0);
+        check_write(org_id, caller());
+        check_balance(org_id, PUSH_FEE);
+        set_bytes(&key2u(b"cid_bytes", repo_id, branch_hash), &cid.0);
+        deduct(org_id, PUSH_FEE);
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_commit_cid(repo_id: u64, branch_hash: u64) -> Bytes {
+        let org_id = get_u64(&key1(b"repo_org", repo_id));
+        assert!(org_id > 0);
+        assert!(get_u8(&key2(b"mbr_role", org_id, &caller().0)) > 0);
+        get_bytes(&key2u(b"cid_bytes", repo_id, branch_hash))
+    }
+
+    // ── Repo keypair ──────────────────────────────────────────────────────
+
+    #[pvm_contract_macros::method]
+    pub fn store_repo_pubkey(repo_id: u64, pubkey: Bytes) {
+        let org_id = get_u64(&key1(b"repo_org", repo_id));
+        assert!(org_id > 0);
+        check_write(org_id, caller());
+        set_bytes(&key1(b"repo_pubkey", repo_id), &pubkey.0);
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_repo_pubkey(repo_id: u64) -> Bytes {
+        get_bytes(&key1(b"repo_pubkey", repo_id))
+    }
+
+    // ── Grants ────────────────────────────────────────────────────────────
 
     #[pvm_contract_macros::method]
     pub fn create_grant(org_id: u64, amount: u64) -> u64 {
@@ -218,6 +290,8 @@ mod dotforge {
         assert!(caller().0 == admin);
         set_bool(&key_addr(b"is_audit", &auditor.0), true);
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
 
     fn check_write(org_id: u64, c: Address) {
         let r = get_u8(&key2(b"mbr_role", org_id, &c.0));
