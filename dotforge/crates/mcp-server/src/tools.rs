@@ -2,7 +2,7 @@ use axum::{extract::Json, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::{contract, ipfs};
+use crate::{chain, ipfs};
 
 #[derive(Deserialize)]
 pub struct McpRequest {
@@ -135,8 +135,8 @@ async fn git_commit(args: Value) -> anyhow::Result<Value> {
     }))?;
 
     let cid = ipfs::upload(blob).await?;
-    let cid_hash    = contract::hash_string(&cid);
-    let branch_hash = contract::hash_string(&branch);
+    let cid_hash    = chain::hash_string(&cid);
+    let branch_hash = chain::hash_string(&branch);
 
     Ok(json!({
         "status": "committed",
@@ -154,7 +154,7 @@ async fn git_pull(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
     let branch  = args["branch"].as_str().unwrap_or("main");
 
-    let cid_hash = contract::get_branch(repo_id, branch).await?;
+    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
 
     if cid_hash == 0 {
         return Ok(json!({
@@ -174,7 +174,7 @@ async fn git_pull(args: Value) -> anyhow::Result<Value> {
 async fn git_fetch(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
     let branch  = args["branch"].as_str().unwrap_or("main");
-    let cid_hash = contract::get_branch(repo_id, branch).await?;
+    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
 
     Ok(json!({
         "repo_id": repo_id,
@@ -186,7 +186,7 @@ async fn git_fetch(args: Value) -> anyhow::Result<Value> {
 async fn git_log(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
     let branch  = args["branch"].as_str().unwrap_or("main");
-    let cid_hash = contract::get_branch(repo_id, branch).await?;
+    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
 
     Ok(json!({
         "repo_id": repo_id,
@@ -201,7 +201,7 @@ async fn submit_grant_work(args: Value) -> anyhow::Result<Value> {
     let branch      = args["branch"].as_str().unwrap_or("main");
     let description = args["description"].as_str().unwrap_or("");
 
-    let cid_hash = contract::get_branch(repo_id, branch).await?;
+    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
 
     Ok(json!({
         "status": "ready_for_audit",

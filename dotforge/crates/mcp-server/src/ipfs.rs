@@ -1,6 +1,9 @@
 use anyhow::Result;
+use std::env;
 
-const IPFS_API: &str = "http://127.0.0.1:5001";
+fn ipfs_api() -> String {
+    env::var("IPFS_API").unwrap_or_else(|_| "http://127.0.0.1:5001".to_string())
+}
 
 pub async fn upload(data: Vec<u8>) -> Result<String> {
     let client = reqwest::Client::new();
@@ -8,7 +11,7 @@ pub async fn upload(data: Vec<u8>) -> Result<String> {
     let form = reqwest::multipart::Form::new().part("file", part);
 
     let res: serde_json::Value = client
-        .post(format!("{}/api/v0/add", IPFS_API))
+        .post(format!("{}/api/v0/add", ipfs_api()))
         .multipart(form)
         .send()
         .await?
@@ -21,7 +24,7 @@ pub async fn upload(data: Vec<u8>) -> Result<String> {
 pub async fn fetch(cid: &str) -> Result<Vec<u8>> {
     let client = reqwest::Client::new();
     let bytes = client
-        .post(format!("{}/api/v0/cat?arg={}", IPFS_API, cid))
+        .post(format!("{}/api/v0/cat?arg={}", ipfs_api(), cid))
         .send()
         .await?
         .bytes()

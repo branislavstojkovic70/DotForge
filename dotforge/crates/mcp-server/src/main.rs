@@ -1,11 +1,14 @@
-mod contract;
 mod ipfs;
 mod tools;
+mod chain;
 
 use axum::{routing::post, Router};
 
 #[tokio::main]
 async fn main() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    dotenvy::from_path(std::path::Path::new(manifest_dir).join(".env")).ok();
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
 
     let app = Router::new()
