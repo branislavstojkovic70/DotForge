@@ -15,3 +15,6 @@ hex                = "0.4"
 tracing            = "0.1"
 tracing-subscriber = "0.3"
 dotenvy            = "0.15"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+aes-gcm      = "0.10"
+rand         = "0.8"
