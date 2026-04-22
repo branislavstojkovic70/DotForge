@@ -13,4 +13,10 @@ interface DotForge {
     function submitGrant(uint64 grantId) external;
     function submitVerdict(uint64 grantId, bool approved) external;
     function registerAuditor(address auditor) external;
+    function storeCommitCid(uint64 repoId, uint64 branchHash, bytes calldata cid) external;
+    function getCommitCid(uint64 repoId, uint64 branchHash) external view returns (bytes memory);
+    function storeRepoPubkey(uint64 repoId, bytes calldata pubkey) external;
+    function getRepoPubkey(uint64 repoId) external view returns (bytes memory);
+    function storeRepoPrivkey(uint64 repoId, bytes calldata privkey) external;
+    function getRepoPrivkey(uint64 repoId) external view returns (bytes memory);
 }

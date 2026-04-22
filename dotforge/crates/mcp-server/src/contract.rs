@@ -1,7 +1,7 @@
 use anyhow::Result;
 use sha2::{Sha256, Digest};
 
-pub const CONTRACT_ADDRESS: &str = "0xf572b1098c3e8ca459ecefaccfd6978f85b0fd3a";
+pub const CONTRACT_ADDRESS: &str = "0x64ca2870ded6bc21e9d6ffb5e753cc0e5cd9aa5e";
 pub const RPC_URL: &str = "https://services.polkadothub-rpc.com/testnet";
 
 pub fn hash_string(s: &str) -> u64 {
