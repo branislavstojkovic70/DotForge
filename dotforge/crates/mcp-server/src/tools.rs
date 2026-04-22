@@ -1,8 +1,7 @@
 use axum::{extract::Json, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-
-use crate::{chain, ipfs};
+use crate::{chain, ipfs, crypto};
 
 #[derive(Deserialize)]
 pub struct McpRequest {
@@ -40,22 +39,45 @@ fn tools_list() -> Value {
     json!({
         "tools": [
             {
-                "name": "git_commit",
-                "description": "Commit files to a repo branch. Uploads to IPFS and returns values to store on chain.",
+                "name": "init_repo",
+                "description": "Initialize repo with X25519 keypair. Stores both keys on chain (simulated TEE).",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "repo_id":  { "type": "number" },
-                        "branch":   { "type": "string" },
-                        "message":  { "type": "string" },
-                        "files":    { "type": "object", "description": "filename -> content" }
+                        "repo_id": { "type": "number" }
+                    },
+                    "required": ["repo_id"]
+                }
+            },
+            {
+                "name": "git_commit",
+                "description": "Commit files. Encrypts with repo pubkey, uploads to IPFS, stores CID on chain.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "repo_id": { "type": "number" },
+                        "branch":  { "type": "string" },
+                        "message": { "type": "string" },
+                        "files":   { "type": "object", "description": "filename -> content" }
                     },
                     "required": ["repo_id", "branch", "message", "files"]
                 }
             },
             {
+                "name": "git_push",
+                "description": "Confirm latest commit is on chain.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "repo_id": { "type": "number" },
+                        "branch":  { "type": "string" }
+                    },
+                    "required": ["repo_id", "branch"]
+                }
+            },
+            {
                 "name": "git_pull",
-                "description": "Pull latest files from a repo branch via IPFS.",
+                "description": "Pull and decrypt latest files from a branch.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -67,7 +89,7 @@ fn tools_list() -> Value {
             },
             {
                 "name": "git_fetch",
-                "description": "Get current branch head from contract.",
+                "description": "Get current branch CID from chain without downloading files.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -88,20 +110,6 @@ fn tools_list() -> Value {
                     },
                     "required": ["repo_id", "branch"]
                 }
-            },
-            {
-                "name": "submit_grant_work",
-                "description": "Submit completed grant work for AI audit.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "grant_id":    { "type": "number" },
-                        "repo_id":     { "type": "number" },
-                        "branch":      { "type": "string" },
-                        "description": { "type": "string" }
-                    },
-                    "required": ["grant_id", "repo_id", "branch", "description"]
-                }
             }
         ]
     })
@@ -109,13 +117,31 @@ fn tools_list() -> Value {
 
 async fn call_tool(name: &str, args: Value) -> anyhow::Result<Value> {
     match name {
-        "git_commit"       => git_commit(args).await,
-        "git_pull"         => git_pull(args).await,
-        "git_fetch"        => git_fetch(args).await,
-        "git_log"          => git_log(args).await,
-        "submit_grant_work" => submit_grant_work(args).await,
+        "init_repo"  => init_repo(args).await,
+        "git_commit" => git_commit(args).await,
+        "git_push"   => git_push(args).await,
+        "git_pull"   => git_pull(args).await,
+        "git_fetch"  => git_fetch(args).await,
+        "git_log"    => git_log(args).await,
         _ => Err(anyhow::anyhow!("unknown tool: {}", name)),
     }
+}
+
+async fn init_repo(args: Value) -> anyhow::Result<Value> {
+    let repo_id = args["repo_id"].as_u64().unwrap_or(0);
+
+    let keypair = crypto::generate_keypair();
+
+    chain::store_repo_pubkey(repo_id, &keypair.public)?;
+    chain::store_repo_privkey(repo_id, &keypair.private)?;
+
+    Ok(json!({
+        "status": "initialized",
+        "repo_id": repo_id,
+        "pubkey": hex::encode(&keypair.public),
+        "privkey": hex::encode(&keypair.private),
+        "note": "both keys stored on chain (simulated TEE - v2 will use Phala)"
+    }))
 }
 
 async fn git_commit(args: Value) -> anyhow::Result<Value> {
@@ -123,6 +149,11 @@ async fn git_commit(args: Value) -> anyhow::Result<Value> {
     let branch  = args["branch"].as_str().unwrap_or("main").to_string();
     let message = args["message"].as_str().unwrap_or("").to_string();
     let files   = &args["files"];
+
+    let pubkey = chain::get_repo_pubkey(repo_id).await?;
+    if pubkey.is_empty() {
+        return Err(anyhow::anyhow!("repo not initialized - call init_repo first"));
+    }
 
     let blob = serde_json::to_vec(&json!({
         "message": message,
@@ -134,19 +165,33 @@ async fn git_commit(args: Value) -> anyhow::Result<Value> {
             .as_secs()
     }))?;
 
-    let cid = ipfs::upload(blob).await?;
-    let cid_hash    = chain::hash_string(&cid);
+    let encrypted = crypto::encrypt(&blob, &pubkey)?;
+    let cid = ipfs::upload(encrypted).await?;
     let branch_hash = chain::hash_string(&branch);
+    chain::store_commit_cid(repo_id, branch_hash, &cid)?;
 
     Ok(json!({
         "status": "committed",
         "cid": cid,
-        "cid_hash": cid_hash,
-        "branch_hash": branch_hash,
-        "repo_id": repo_id,
         "branch": branch,
         "message": message,
-        "next_step": "call store_commit on contract with repo_id, branch_hash, cid_hash"
+        "repo_id": repo_id,
+        "encrypted": true,
+    }))
+}
+
+async fn git_push(args: Value) -> anyhow::Result<Value> {
+    let repo_id = args["repo_id"].as_u64().unwrap_or(0);
+    let branch  = args["branch"].as_str().unwrap_or("main");
+
+    let branch_hash = chain::hash_string(branch);
+    let cid = chain::get_commit_cid(repo_id, branch_hash).await?;
+
+    Ok(json!({
+        "status": if cid.is_empty() { "no commits" } else { "ok" },
+        "repo_id": repo_id,
+        "branch": branch,
+        "head_cid": cid,
     }))
 }
 
@@ -154,62 +199,66 @@ async fn git_pull(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
     let branch  = args["branch"].as_str().unwrap_or("main");
 
-    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
+    let branch_hash = chain::hash_string(branch);
+    let cid = chain::get_commit_cid(repo_id, branch_hash).await?;
 
-    if cid_hash == 0 {
+    if cid.is_empty() {
         return Ok(json!({
             "status": "empty",
             "message": "branch has no commits"
         }));
     }
 
+    let encrypted = ipfs::fetch(&cid).await?;
+
+    let privkey = chain::get_repo_privkey(repo_id).await?;
+    println!("DEBUG privkey len: {}", privkey.len());
+    println!("DEBUG privkey hex: {}", hex::encode(&privkey));
+
+    if privkey.is_empty() {
+        return Err(anyhow::anyhow!("no privkey found on chain for repo"));
+    }
+
+    let decrypted = crypto::decrypt(&encrypted, &privkey)?;
+    let commit: Value = serde_json::from_slice(&decrypted)?;
+
     Ok(json!({
         "status": "ok",
         "repo_id": repo_id,
         "branch": branch,
-        "cid_hash": cid_hash,
+        "cid": cid,
+        "message": commit["message"],
+        "timestamp": commit["timestamp"],
+        "files": commit["files"],
     }))
 }
 
 async fn git_fetch(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
     let branch  = args["branch"].as_str().unwrap_or("main");
-    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
+
+    let branch_hash = chain::hash_string(branch);
+    let cid = chain::get_commit_cid(repo_id, branch_hash).await?;
 
     Ok(json!({
         "repo_id": repo_id,
         "branch": branch,
-        "head_cid_hash": cid_hash,
+        "head_cid": cid,
+        "has_commits": !cid.is_empty(),
     }))
 }
 
 async fn git_log(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
     let branch  = args["branch"].as_str().unwrap_or("main");
-    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
+
+    let branch_hash = chain::hash_string(branch);
+    let cid = chain::get_commit_cid(repo_id, branch_hash).await?;
 
     Ok(json!({
         "repo_id": repo_id,
         "branch": branch,
-        "latest_commit_hash": cid_hash,
-    }))
-}
-
-async fn submit_grant_work(args: Value) -> anyhow::Result<Value> {
-    let grant_id    = args["grant_id"].as_u64().unwrap_or(0);
-    let repo_id     = args["repo_id"].as_u64().unwrap_or(0);
-    let branch      = args["branch"].as_str().unwrap_or("main");
-    let description = args["description"].as_str().unwrap_or("");
-
-    let cid_hash = chain::get_branch(repo_id, chain::hash_string(branch)).await?;
-
-    Ok(json!({
-        "status": "ready_for_audit",
-        "grant_id": grant_id,
-        "repo_id": repo_id,
-        "branch": branch,
-        "submission_cid_hash": cid_hash,
-        "description": description,
-        "next_step": "call submit_grant on contract to trigger AI audit"
+        "latest_cid": cid,
+        "has_commits": !cid.is_empty(),
     }))
 }

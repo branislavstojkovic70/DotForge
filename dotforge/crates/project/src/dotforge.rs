@@ -291,6 +291,22 @@ mod dotforge {
         set_bool(&key_addr(b"is_audit", &auditor.0), true);
     }
 
+    #[pvm_contract_macros::method]
+    pub fn store_repo_privkey(repo_id: u64, privkey: Bytes) {
+        let org_id = get_u64(&key1(b"repo_org", repo_id));
+        assert!(org_id > 0);
+        check_write(org_id, caller());
+        set_bytes(&key1(b"repo_privkey", repo_id), &privkey.0);
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_repo_privkey(repo_id: u64) -> Bytes {
+        let org_id = get_u64(&key1(b"repo_org", repo_id));
+        assert!(org_id > 0);
+        assert!(get_u8(&key2(b"mbr_role", org_id, &caller().0)) > 0);
+        get_bytes(&key1(b"repo_privkey", repo_id))
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     fn check_write(org_id: u64, c: Address) {

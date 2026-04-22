@@ -1,6 +1,7 @@
 mod ipfs;
 mod tools;
 mod chain;
+mod crypto;
 
 use axum::{routing::post, Router};
 
