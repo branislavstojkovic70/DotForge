@@ -140,7 +140,7 @@ async fn init_repo(args: Value) -> anyhow::Result<Value> {
         "repo_id": repo_id,
         "pubkey": hex::encode(&keypair.public),
         "privkey": hex::encode(&keypair.private),
-        "note": "both keys stored on chain (simulated TEE - v2 will use Phala)"
+        "note": "both keys stored on chain"
     }))
 }
 
