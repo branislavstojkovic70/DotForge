@@ -4,6 +4,7 @@ const ORG_PREFIX = "dotforge:org:";
 const REPO_PREFIX = "dotforge:repo:";
 const DEPOSIT_PREFIX = "dotforge:deposit:";
 const MEMBER_PREFIX = "dotforge:member:";
+const GRANT_PREFIX = "dotforge:grant:";
 
 export type StoredOrg = {
   orgId: string;
@@ -61,6 +62,36 @@ export const ID_TO_ROLE: Record<number, MemberRole | undefined> = {
   2: "Editor",
   3: "Reader",
   4: "Auditor",
+};
+
+export type StoredGrantMilestone = {
+  id: string;
+  title: string;
+  amount: number;
+};
+
+export type StoredGrantCategory =
+  | "Infrastructure"
+  | "DeFi"
+  | "Tooling"
+  | "Research"
+  | "Governance"
+  | "Education";
+
+export type StoredGrant = {
+  grantId: string;
+  orgId: string;
+  title: string;
+  description: string;
+  category: StoredGrantCategory;
+  amount: string;
+  currency: string;
+  deadline: string;
+  teamSize: number;
+  milestones: StoredGrantMilestone[];
+  txHash: string;
+  createdBy: string;
+  createdAt: string;
 };
 
 function readJson<T>(key: string): T | null {
@@ -172,6 +203,24 @@ export function getStoredMembers(): StoredMember[] {
 
 export function getStoredMembersByOrg(orgId: string): StoredMember[] {
   return getStoredMembers().filter((m) => m.orgId === orgId);
+}
+
+export function saveGrant(grant: StoredGrant): void {
+  localStorage.setItem(
+    `${GRANT_PREFIX}${grant.grantId}`,
+    JSON.stringify(grant)
+  );
+  notify();
+}
+
+export function getStoredGrants(): StoredGrant[] {
+  return readAllByPrefix<StoredGrant>(GRANT_PREFIX).sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
+  );
+}
+
+export function getStoredGrantsByOrg(orgId: string): StoredGrant[] {
+  return getStoredGrants().filter((g) => g.orgId === orgId);
 }
 
 export function formatRelativeTime(iso: string): string {

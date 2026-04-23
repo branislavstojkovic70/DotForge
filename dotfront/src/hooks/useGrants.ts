@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useStoredGrants, useStoredOrgs } from "./useStoredData";
+import { formatRelativeTime } from "../utils/localStore";
 
 export type GrantStatus = "Active" | "Under Review" | "Completed" | "Draft" | "Rejected";
 
@@ -398,8 +400,40 @@ export const statusOrder: GrantStatus[] = [
 
 export function useGrants() {
   const [filters, setFilters] = useState<GrantFilters>(defaultFilters);
+  const storedGrants = useStoredGrants();
+  const storedOrgs = useStoredOrgs();
 
-  const grants = useMemo(() => mockGrants, []);
+  const grants = useMemo<GrantDetail[]>(() => {
+    const orgMap = new Map(storedOrgs.map((o) => [o.orgId, o]));
+    const realGrants: GrantDetail[] = storedGrants.map((g) => {
+      const org = orgMap.get(g.orgId);
+      const milestones: GrantMilestone[] = g.milestones.map((m) => ({
+        id: m.id,
+        title: m.title,
+        amount: m.amount,
+        completed: false,
+      }));
+      return {
+        id: `grant-${g.grantId}`,
+        title: g.title,
+        description: g.description,
+        organization: org?.name ?? `Org #${g.orgId}`,
+        organizationColor: org?.avatarColor ?? "#E6007A",
+        category: g.category as GrantCategory,
+        status: "Draft",
+        amountRequested: Number(g.amount),
+        amountPaid: 0,
+        currency: g.currency,
+        progress: 0,
+        milestones,
+        teamSize: g.teamSize,
+        appliedAt: formatRelativeTime(g.createdAt),
+        deadline: g.deadline || "—",
+      };
+    });
+
+    return [...realGrants, ...mockGrants];
+  }, [storedGrants, storedOrgs]);
 
   const categories = useMemo<CategoryFilter[]>(
     () => ["All", "Infrastructure", "DeFi", "Tooling", "Research", "Governance", "Education"],
