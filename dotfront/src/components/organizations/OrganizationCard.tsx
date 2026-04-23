@@ -1,7 +1,9 @@
-import { Avatar, Box, Button, Chip, Divider, Typography, alpha } from "@mui/material";
-import { Verified } from "@mui/icons-material";
+import { Avatar, Box, Button, Chip, Divider, Stack, Typography, alpha } from "@mui/material";
+import { Paid, Verified } from "@mui/icons-material";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { OrgRole, OrganizationDetail } from "../../hooks/useOrganizations";
+import DepositDialog from "../deposit/DepositDialog";
 
 type Props = {
   organization: OrganizationDetail;
@@ -17,6 +19,7 @@ const roleStyles: Record<OrgRole, { bg: string; fg: string }> = {
 export default function OrganizationCard({ organization }: Props) {
   const navigate = useNavigate();
   const role = roleStyles[organization.role];
+  const [depositOpen, setDepositOpen] = useState(false);
 
   return (
     <Box
@@ -128,23 +131,48 @@ export default function OrganizationCard({ organization }: Props) {
             {organization.totalFunded}
           </Typography>
         </Box>
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => navigate(`/organizations/${organization.id}`)}
-          sx={{
-            textTransform: "none",
-            borderColor: alpha("#FFFFFF", 0.12),
-            color: "#F5F5F5",
-            "&:hover": {
-              borderColor: "#E6007A",
-              backgroundColor: alpha("#E6007A", 0.08),
-            },
-          }}
-        >
-          View
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Paid sx={{ fontSize: 16 }} />}
+            onClick={() => setDepositOpen(true)}
+            sx={{
+              textTransform: "none",
+              borderColor: alpha("#58AD95", 0.4),
+              color: "#58AD95",
+              "&:hover": {
+                borderColor: "#58AD95",
+                backgroundColor: alpha("#58AD95", 0.08),
+              },
+            }}
+          >
+            Deposit
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => navigate(`/organizations/${organization.id}`)}
+            sx={{
+              textTransform: "none",
+              borderColor: alpha("#FFFFFF", 0.12),
+              color: "#F5F5F5",
+              "&:hover": {
+                borderColor: "#E6007A",
+                backgroundColor: alpha("#E6007A", 0.08),
+              },
+            }}
+          >
+            View
+          </Button>
+        </Stack>
       </Box>
+
+      <DepositDialog
+        open={depositOpen}
+        onClose={() => setDepositOpen(false)}
+        orgId={organization.id}
+      />
     </Box>
   );
 }

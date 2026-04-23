@@ -20,7 +20,7 @@ const emptyDraft: OrganizationDraft = {
 
 export default function NewOrganization() {
   const navigate = useNavigate();
-  const { isConnected, connect, isConnecting, service } = useDotForge();
+  const { isConnected, connect, isConnecting, service, account } = useDotForge();
 
   const [draft, setDraft] = useState<OrganizationDraft>(emptyDraft);
   const [submitting, setSubmitting] = useState(false);
@@ -28,8 +28,12 @@ export default function NewOrganization() {
   const handleSubmit = async () => {
     setSubmitting(true);
     const toastId = toast.loading("Submitting transaction…");
+    console.group("[NewOrganization] submit createOrg");
+    console.log("draft:", draft);
+    console.log("account:", account);
     try {
       const { result: orgId, hash } = await service.createOrg();
+      console.log("createOrg ok, orgId:", orgId.toString(), "hash:", hash);
 
       saveOrg({
         ...draft,
@@ -42,8 +46,10 @@ export default function NewOrganization() {
       navigate("/organizations");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create organization";
+      console.error("[NewOrganization] createOrg failed:", err);
       toast.error(message, { id: toastId });
     } finally {
+      console.groupEnd();
       setSubmitting(false);
     }
   };
