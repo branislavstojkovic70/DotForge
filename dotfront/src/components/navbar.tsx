@@ -16,7 +16,6 @@ import {
 } from "@mui/material";
 import { Outlet, useNavigate } from "react-router-dom";
 import {
-  AccountBalanceWallet,
   Apartment,
   FiberManualRecord,
   FolderOutlined,
@@ -26,6 +25,7 @@ import {
   Timeline,
 } from "@mui/icons-material";
 import { useState } from "react";
+import WalletButton from "./wallet/WalletButton";
 
 type NavItem = {
   label: string;
@@ -50,10 +50,6 @@ export default function Navbar() {
 
   const handleNavClick = (item: NavItem) => {
     navigate(item.path);
-  };
-
-  const handleConnectWallet = () => {
-    navigate("/connect");
   };
 
   return (
@@ -122,15 +118,7 @@ export default function Navbar() {
           >
             {!isMobile && (
               <>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AccountBalanceWallet />}
-                  onClick={handleConnectWallet}
-                  sx={{ textTransform: "none" }}
-                >
-                  Connect Wallet
-                </Button>
+                <WalletButton />
                 <Chip
                   icon={<FiberManualRecord sx={{ fontSize: 10, color: "#58AD95 !important" }} />}
                   label="Paseo testnet"
@@ -155,8 +143,8 @@ export default function Navbar() {
 
       {/* Drawer za mobile */}
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 260 }} role="presentation" onClick={() => setDrawerOpen(false)}>
-          <List>
+        <Box sx={{ width: 260 }} role="presentation">
+          <List onClick={() => setDrawerOpen(false)}>
             {navItems.map((item) => (
               // @ts-ignore
               <ListItem
@@ -173,23 +161,9 @@ export default function Navbar() {
                 <ListItemText primary={item.label} />
               </ListItem>
             ))}
-            {/* @ts-ignore */}
-            <ListItem
-              button
-              // @ts-ignore
-              onClick={(e) => {
-                e.stopPropagation();
-                setDrawerOpen(false);
-                handleConnectWallet();
-              }}
-            >
-              <ListItemIcon>
-                <AccountBalanceWallet />
-              </ListItemIcon>
-              <ListItemText primary="Connect Wallet" />
-            </ListItem>
           </List>
-          <Box sx={{ px: 2, pb: 2 }}>
+          <Box sx={{ px: 2, pb: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <WalletButton fullWidth />
             <Chip
               icon={<FiberManualRecord sx={{ fontSize: 10, color: "#58AD95 !important" }} />}
               label="Paseo testnet"
