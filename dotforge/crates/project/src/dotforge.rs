@@ -307,6 +307,51 @@ mod dotforge {
         get_bytes(&key1(b"repo_privkey", repo_id))
     }
 
+    #[pvm_contract_macros::method]
+    pub fn get_org_balance(org_id: u64) -> u64 {
+        get_u64(&key1(b"org_balance", org_id))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_member_role(org_id: u64, member: Address) -> u8 {
+        get_u8(&key2(b"mbr_role", org_id, &member.0))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_org_count() -> u64 {
+        get_u64(&key_static(b"org_count"))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_repo_count() -> u64 {
+        get_u64(&key_static(b"repo_count"))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_repo_org(repo_id: u64) -> u64 {
+        get_u64(&key1(b"repo_org", repo_id))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_grant_status(grant_id: u64) -> u8 {
+        get_u8(&key1(b"grant_st", grant_id))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_grant_amount(grant_id: u64) -> u64 {
+        get_u64(&key1(b"grant_amt", grant_id))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_grant_org(grant_id: u64) -> u64 {
+        get_u64(&key1(b"grant_org", grant_id))
+    }
+
+    #[pvm_contract_macros::method]
+    pub fn get_grant_count() -> u64 {
+        get_u64(&key_static(b"grant_count"))
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     fn check_write(org_id: u64, c: Address) {

@@ -2,7 +2,7 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::process::Command;
 
-pub const CONTRACT: &str = "0x64ca2870ded6bc21e9d6ffb5e753cc0e5cd9aa5e";
+pub const CONTRACT: &str = "0x9468ed655c0da9898ed0885cd4557f7906bc3a30";
 pub const RPC: &str = "https://services.polkadothub-rpc.com/testnet";
 pub const WALLET: &str = "dotforge-deployer";
 pub const CALLER: &str = "0xB79AFcc9e941E022e2D00ba94778FEec424A3108";

@@ -154,6 +154,72 @@ export const dotforgeAbi = [
     inputs: [{ name: "repoId", type: "uint64" }],
     outputs: [{ type: "bytes" }],
   },
+  {
+    type: "function",
+    name: "getOrgBalance",
+    stateMutability: "view",
+    inputs: [{ name: "orgId", type: "uint64" }],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "getMemberRole",
+    stateMutability: "view",
+    inputs: [
+      { name: "orgId", type: "uint64" },
+      { name: "member", type: "address" },
+    ],
+    outputs: [{ type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "getOrgCount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "getRepoCount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "getRepoOrg",
+    stateMutability: "view",
+    inputs: [{ name: "repoId", type: "uint64" }],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "getGrantStatus",
+    stateMutability: "view",
+    inputs: [{ name: "grantId", type: "uint64" }],
+    outputs: [{ type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "getGrantAmount",
+    stateMutability: "view",
+    inputs: [{ name: "grantId", type: "uint64" }],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "getGrantOrg",
+    stateMutability: "view",
+    inputs: [{ name: "grantId", type: "uint64" }],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "getGrantCount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint64" }],
+  },
 ] as const;
 
 export type DotForgeAbi = typeof dotforgeAbi;

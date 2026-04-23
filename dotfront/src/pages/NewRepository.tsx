@@ -5,7 +5,7 @@ import {
   ArrowBack,
 } from "@mui/icons-material";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useDotForge } from "../hooks/useDotForge";
 import RepositoryForm, {
@@ -13,6 +13,15 @@ import RepositoryForm, {
 } from "../components/repositories/RepositoryForm";
 import RepositoryPreview from "../components/repositories/RepositoryPreview";
 import { getStoredOrgs, saveRepo } from "../utils/localStore";
+
+const PUSH_FEE = 10_000_000n;
+const ROLE_LABEL: Record<number, string> = {
+  0: "None",
+  1: "Owner",
+  2: "Editor",
+  3: "Reader",
+  4: "Auditor",
+};
 
 const makeEmptyDraft = (orgId: string): RepositoryDraft => ({
   orgId,
@@ -25,12 +34,18 @@ const makeEmptyDraft = (orgId: string): RepositoryDraft => ({
 
 export default function NewRepository() {
   const navigate = useNavigate();
-  const { isConnected, connect, isConnecting, service } = useDotForge();
+  const location = useLocation();
+  const { isConnected, connect, isConnecting, service, account } = useDotForge();
 
   const orgs = useMemo(() => getStoredOrgs(), []);
-  const [draft, setDraft] = useState<RepositoryDraft>(() =>
-    makeEmptyDraft(orgs[0]?.orgId ?? "")
-  );
+  const preselectedOrgId = (location.state as { orgId?: string } | null)?.orgId;
+  const [draft, setDraft] = useState<RepositoryDraft>(() => {
+    const initialOrg =
+      (preselectedOrgId && orgs.find((o) => o.orgId === preselectedOrgId)?.orgId) ||
+      orgs[0]?.orgId ||
+      "";
+    return makeEmptyDraft(initialOrg);
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const selectedOrg = useMemo(
@@ -42,9 +57,55 @@ export default function NewRepository() {
     if (!selectedOrg) return;
     setSubmitting(true);
     const toastId = toast.loading("Submitting transaction…");
+
+    console.group(
+      `[NewRepository] submit createRepo for org #${selectedOrg.orgId} (${selectedOrg.name})`
+    );
+    console.log("draft:", draft);
+    console.log("selectedOrg:", selectedOrg);
+    console.log("account:", account);
+
     try {
       const orgIdBigint = BigInt(selectedOrg.orgId);
+
+      console.log("running pre-flight checks…");
+      const orgCount = await service.getOrgCount();
+      console.log("orgCount on chain:", orgCount.toString());
+
+      if (orgIdBigint > orgCount) {
+        throw new Error(
+          `Organization #${selectedOrg.orgId} does not exist on chain (orgCount=${orgCount}).`
+        );
+      }
+
+      const [role, balance] = await Promise.all([
+        account
+          ? service.getMemberRole(orgIdBigint, account)
+          : Promise.resolve(0),
+        service.getOrgBalance(orgIdBigint),
+      ]);
+      console.log("member role:", role, `(${ROLE_LABEL[role] ?? "?"})`);
+      console.log(
+        "org balance:",
+        balance.toString(),
+        " needed (PUSH_FEE):",
+        PUSH_FEE.toString()
+      );
+
+      if (role !== 1 && role !== 2) {
+        throw new Error(
+          `Your wallet (${account}) is not Owner/Editor of org #${selectedOrg.orgId} (role=${role}/${ROLE_LABEL[role] ?? "?"}).`
+        );
+      }
+      if (balance < PUSH_FEE) {
+        throw new Error(
+          `Org #${selectedOrg.orgId} has insufficient balance. Has ${balance}, needs ${PUSH_FEE}. Deposit first.`
+        );
+      }
+
+      console.log("pre-flight ok → calling createRepo…");
       const { result: repoId, hash } = await service.createRepo(orgIdBigint);
+      console.log("createRepo ok, repoId:", repoId.toString(), "hash:", hash);
 
       saveRepo({
         repoId: repoId.toString(),
@@ -63,8 +124,10 @@ export default function NewRepository() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to create repository";
+      console.error("[NewRepository] createRepo failed:", err);
       toast.error(message, { id: toastId });
     } finally {
+      console.groupEnd();
       setSubmitting(false);
     }
   };
