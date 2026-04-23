@@ -6,6 +6,7 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "./theme";
 import Navbar from "./components/navbar";
 import Dashboard from "./pages/Dashboard";
+import Organizations from "./pages/Organizations";
 
 const router = createBrowserRouter([
   {
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
     element: <Navbar />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: "organizations", element: <Organizations /> },
     ],
   },
 ]);
