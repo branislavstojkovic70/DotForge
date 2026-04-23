@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Organizations from "./pages/Organizations";
 import Repositories from "./pages/Repositories";
 import Grants from "./pages/Grants";
+import Activity from "./pages/Activity";
 
 const router = createBrowserRouter([
   {
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
       { path: "organizations", element: <Organizations /> },
       { path: "repositories", element: <Repositories /> },
       { path: "grants", element: <Grants /> },
+      { path: "activity", element: <Activity /> },
     ],
   },
 ]);
