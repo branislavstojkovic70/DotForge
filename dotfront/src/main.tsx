@@ -7,6 +7,7 @@ import theme from "./theme";
 import Navbar from "./components/navbar";
 import Dashboard from "./pages/Dashboard";
 import Organizations from "./pages/Organizations";
+import NewOrganization from "./pages/NewOrganization";
 import Repositories from "./pages/Repositories";
 import Grants from "./pages/Grants";
 import Activity from "./pages/Activity";
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: "organizations", element: <Organizations /> },
+      { path: "organizations/new", element: <NewOrganization /> },
       { path: "repositories", element: <Repositories /> },
       { path: "grants", element: <Grants /> },
       { path: "activity", element: <Activity /> },
