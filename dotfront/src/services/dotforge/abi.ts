@@ -101,61 +101,6 @@ export const dotforgeAbi = [
   },
   {
     type: "function",
-    name: "storeCommitCid",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "repoId", type: "uint64" },
-      { name: "branchHash", type: "uint64" },
-      { name: "cid", type: "bytes" },
-    ],
-    outputs: [],
-  },
-  {
-    type: "function",
-    name: "getCommitCid",
-    stateMutability: "view",
-    inputs: [
-      { name: "repoId", type: "uint64" },
-      { name: "branchHash", type: "uint64" },
-    ],
-    outputs: [{ type: "bytes" }],
-  },
-  {
-    type: "function",
-    name: "storeRepoPubkey",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "repoId", type: "uint64" },
-      { name: "pubkey", type: "bytes" },
-    ],
-    outputs: [],
-  },
-  {
-    type: "function",
-    name: "getRepoPubkey",
-    stateMutability: "view",
-    inputs: [{ name: "repoId", type: "uint64" }],
-    outputs: [{ type: "bytes" }],
-  },
-  {
-    type: "function",
-    name: "storeRepoPrivkey",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "repoId", type: "uint64" },
-      { name: "privkey", type: "bytes" },
-    ],
-    outputs: [],
-  },
-  {
-    type: "function",
-    name: "getRepoPrivkey",
-    stateMutability: "view",
-    inputs: [{ name: "repoId", type: "uint64" }],
-    outputs: [{ type: "bytes" }],
-  },
-  {
-    type: "function",
     name: "getOrgBalance",
     stateMutability: "view",
     inputs: [{ name: "orgId", type: "uint64" }],

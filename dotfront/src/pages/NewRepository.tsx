@@ -119,12 +119,15 @@ export default function NewRepository() {
         createdAt: new Date().toISOString(),
       });
 
-      toast.success(`Repository #${repoId} created`, { id: toastId });
+      toast.success(
+        `Repository #${repoId} created. Run \`dotforge init ${repoId}\` to initialize keys.`,
+        { id: toastId, duration: 6000 }
+      );
       navigate("/repositories");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to create repository";
-      console.error("[NewRepository] createRepo failed:", err);
+      console.error("[NewRepository] failed:", err);
       toast.error(message, { id: toastId });
     } finally {
       console.groupEnd();
