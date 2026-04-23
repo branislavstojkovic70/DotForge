@@ -23,6 +23,7 @@ export default function OrganizationCard({ organization }: Props) {
 
   return (
     <Box
+      onClick={() => navigate(`/organizations/${organization.id}`)}
       sx={{
         position: "relative",
         p: 2.5,
@@ -32,6 +33,7 @@ export default function OrganizationCard({ organization }: Props) {
         display: "flex",
         flexDirection: "column",
         gap: 2,
+        cursor: "pointer",
         transition: "border-color 150ms ease, transform 150ms ease",
         "&:hover": {
           borderColor: alpha("#E6007A", 0.4),
@@ -131,12 +133,15 @@ export default function OrganizationCard({ organization }: Props) {
             {organization.totalFunded}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} onClick={(e) => e.stopPropagation()}>
           <Button
             size="small"
             variant="outlined"
             startIcon={<Paid sx={{ fontSize: 16 }} />}
-            onClick={() => setDepositOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDepositOpen(true);
+            }}
             sx={{
               textTransform: "none",
               borderColor: alpha("#58AD95", 0.4),
@@ -152,7 +157,10 @@ export default function OrganizationCard({ organization }: Props) {
           <Button
             size="small"
             variant="outlined"
-            onClick={() => navigate(`/organizations/${organization.id}`)}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/organizations/${organization.id}`);
+            }}
             sx={{
               textTransform: "none",
               borderColor: alpha("#FFFFFF", 0.12),
@@ -168,11 +176,13 @@ export default function OrganizationCard({ organization }: Props) {
         </Stack>
       </Box>
 
-      <DepositDialog
-        open={depositOpen}
-        onClose={() => setDepositOpen(false)}
-        orgId={organization.id}
-      />
+      <Box onClick={(e) => e.stopPropagation()}>
+        <DepositDialog
+          open={depositOpen}
+          onClose={() => setDepositOpen(false)}
+          orgId={organization.id}
+        />
+      </Box>
     </Box>
   );
 }

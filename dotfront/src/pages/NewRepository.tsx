@@ -5,7 +5,7 @@ import {
   ArrowBack,
 } from "@mui/icons-material";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useDotForge } from "../hooks/useDotForge";
 import RepositoryForm, {
@@ -34,12 +34,18 @@ const makeEmptyDraft = (orgId: string): RepositoryDraft => ({
 
 export default function NewRepository() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isConnected, connect, isConnecting, service, account } = useDotForge();
 
   const orgs = useMemo(() => getStoredOrgs(), []);
-  const [draft, setDraft] = useState<RepositoryDraft>(() =>
-    makeEmptyDraft(orgs[0]?.orgId ?? "")
-  );
+  const preselectedOrgId = (location.state as { orgId?: string } | null)?.orgId;
+  const [draft, setDraft] = useState<RepositoryDraft>(() => {
+    const initialOrg =
+      (preselectedOrgId && orgs.find((o) => o.orgId === preselectedOrgId)?.orgId) ||
+      orgs[0]?.orgId ||
+      "";
+    return makeEmptyDraft(initialOrg);
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const selectedOrg = useMemo(

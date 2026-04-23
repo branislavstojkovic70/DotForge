@@ -8,6 +8,7 @@ import Navbar from "./components/navbar";
 import Dashboard from "./pages/Dashboard";
 import Organizations from "./pages/Organizations";
 import NewOrganization from "./pages/NewOrganization";
+import OrganizationDetail from "./pages/OrganizationDetail";
 import Repositories from "./pages/Repositories";
 import NewRepository from "./pages/NewRepository";
 import Grants from "./pages/Grants";
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: "organizations", element: <Organizations /> },
       { path: "organizations/new", element: <NewOrganization /> },
+      { path: "organizations/:id", element: <OrganizationDetail /> },
       { path: "repositories", element: <Repositories /> },
       { path: "repositories/new", element: <NewRepository /> },
       { path: "grants", element: <Grants /> },
