@@ -5,17 +5,17 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "./theme";
 import Navbar from "./components/navbar";
+import Dashboard from "./pages/Dashboard";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navbar/>,
+    element: <Navbar />,
     children: [
-      {},
+      { index: true, element: <Dashboard /> },
     ],
   },
 ]);
-
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider theme={theme}>
