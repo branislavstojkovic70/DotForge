@@ -1,47 +1,68 @@
 import { Box, Button, Typography, alpha } from "@mui/material";
-import { AccountBalanceWallet, ArrowBack } from "@mui/icons-material";
-import { useState } from "react";
+import {
+  AccountBalanceWallet,
+  Apartment,
+  ArrowBack,
+} from "@mui/icons-material";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useDotForge } from "../hooks/useDotForge";
-import OrganizationForm, {
-  type OrganizationDraft,
-} from "../components/organizations/OrganizationForm";
-import OrganizationPreview from "../components/organizations/OrganizationPreview";
-import { saveOrg } from "../utils/localStore";
+import RepositoryForm, {
+  type RepositoryDraft,
+} from "../components/repositories/RepositoryForm";
+import RepositoryPreview from "../components/repositories/RepositoryPreview";
+import { getStoredOrgs, saveRepo } from "../utils/localStore";
 
-const emptyDraft: OrganizationDraft = {
+const makeEmptyDraft = (orgId: string): RepositoryDraft => ({
+  orgId,
   name: "",
-  handle: "",
   description: "",
-  category: "Infrastructure",
-  avatarColor: "#E6007A",
-};
+  language: "Rust",
+  visibility: "Public",
+  topics: [],
+});
 
-export default function NewOrganization() {
+export default function NewRepository() {
   const navigate = useNavigate();
   const { isConnected, connect, isConnecting, service } = useDotForge();
 
-  const [draft, setDraft] = useState<OrganizationDraft>(emptyDraft);
+  const orgs = useMemo(() => getStoredOrgs(), []);
+  const [draft, setDraft] = useState<RepositoryDraft>(() =>
+    makeEmptyDraft(orgs[0]?.orgId ?? "")
+  );
   const [submitting, setSubmitting] = useState(false);
 
+  const selectedOrg = useMemo(
+    () => orgs.find((o) => o.orgId === draft.orgId) ?? null,
+    [orgs, draft.orgId]
+  );
+
   const handleSubmit = async () => {
+    if (!selectedOrg) return;
     setSubmitting(true);
     const toastId = toast.loading("Submitting transaction…");
     try {
-      const { result: orgId, hash } = await service.createOrg();
+      const orgIdBigint = BigInt(selectedOrg.orgId);
+      const { result: repoId, hash } = await service.createRepo(orgIdBigint);
 
-      saveOrg({
-        ...draft,
-        orgId: orgId.toString(),
+      saveRepo({
+        repoId: repoId.toString(),
+        orgId: selectedOrg.orgId,
+        name: draft.name,
+        description: draft.description,
+        language: draft.language,
+        visibility: draft.visibility,
+        topics: draft.topics,
         txHash: hash,
         createdAt: new Date().toISOString(),
       });
 
-      toast.success(`Organization #${orgId} created`, { id: toastId });
-      navigate("/organizations");
+      toast.success(`Repository #${repoId} created`, { id: toastId });
+      navigate("/repositories");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create organization";
+      const message =
+        err instanceof Error ? err.message : "Failed to create repository";
       toast.error(message, { id: toastId });
     } finally {
       setSubmitting(false);
@@ -49,7 +70,7 @@ export default function NewOrganization() {
   };
 
   const handleCancel = () => {
-    navigate("/organizations");
+    navigate("/repositories");
   };
 
   return (
@@ -68,7 +89,7 @@ export default function NewOrganization() {
         <Button
           size="small"
           startIcon={<ArrowBack sx={{ fontSize: 16 }} />}
-          onClick={() => navigate("/organizations")}
+          onClick={() => navigate("/repositories")}
           sx={{
             textTransform: "none",
             color: "text.secondary",
@@ -77,14 +98,14 @@ export default function NewOrganization() {
             "&:hover": { color: "#FFFFFF", backgroundColor: "transparent" },
           }}
         >
-          Back to organizations
+          Back to repositories
         </Button>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Create organization
+          Create repository
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Register a new organization on-chain. Profile details are stored
-          locally for now and can be moved to a backend or IPFS later.
+          Register a new repository under one of your organizations. The
+          contract assigns a numeric repository ID on success.
         </Typography>
       </Box>
 
@@ -107,7 +128,7 @@ export default function NewOrganization() {
               Wallet required
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Connect your wallet to submit the createOrg transaction on Polkadot Hub Testnet.
+              Connect your wallet to submit the createRepo transaction.
             </Typography>
           </Box>
           <Button
@@ -119,6 +140,39 @@ export default function NewOrganization() {
             sx={{ textTransform: "none" }}
           >
             {isConnecting ? "Connecting…" : "Connect Wallet"}
+          </Button>
+        </Box>
+      )}
+
+      {orgs.length === 0 && (
+        <Box
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            backgroundColor: alpha("#E6007A", 0.08),
+            border: `1px solid ${alpha("#E6007A", 0.3)}`,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Apartment sx={{ color: "#FF4AA6", fontSize: 28 }} />
+          <Box sx={{ flex: 1, minWidth: 200 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              No organizations yet
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              Repositories live under an organization. Create one first.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate("/organizations/new")}
+            sx={{ textTransform: "none" }}
+          >
+            Create organization
           </Button>
         </Box>
       )}
@@ -139,17 +193,18 @@ export default function NewOrganization() {
             border: `1px solid ${alpha("#FFFFFF", 0.06)}`,
           }}
         >
-          <OrganizationForm
+          <RepositoryForm
             draft={draft}
+            orgs={orgs}
             onChange={setDraft}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
             submitting={submitting}
-            disabled={!isConnected}
+            disabled={!isConnected || orgs.length === 0}
           />
         </Box>
 
-        <OrganizationPreview draft={draft} />
+        <RepositoryPreview draft={draft} org={selectedOrg} />
       </Box>
     </Box>
   );

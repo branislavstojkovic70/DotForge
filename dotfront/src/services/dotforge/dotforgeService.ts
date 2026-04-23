@@ -125,6 +125,7 @@ export async function storeCommitCid(
 export async function getCommitCid(repoId: bigint, branch: string): Promise<Hex> {
   const publicClient = getPublicClient();
   const branchHash = await hashToU64(branch);
+    //@ts-ignore
   return (await publicClient.readContract({
     address: DOTFORGE_ADDRESS,
     abi: dotforgeAbi,
@@ -139,6 +140,7 @@ export async function storeRepoPubkey(repoId: bigint, pubkey: Hex): Promise<TxRe
 
 export async function getRepoPubkey(repoId: bigint): Promise<Hex> {
   const publicClient = getPublicClient();
+    //@ts-ignore
   return (await publicClient.readContract({
     address: DOTFORGE_ADDRESS,
     abi: dotforgeAbi,
@@ -153,6 +155,7 @@ export async function storeRepoPrivkey(repoId: bigint, privkey: Hex): Promise<Tx
 
 export async function getRepoPrivkey(repoId: bigint): Promise<Hex> {
   const publicClient = getPublicClient();
+  //@ts-ignore
   return (await publicClient.readContract({
     address: DOTFORGE_ADDRESS,
     abi: dotforgeAbi,
