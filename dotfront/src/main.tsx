@@ -4,17 +4,26 @@ import "./index.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import theme from "./theme";
+import Navbar from "./components/navbar";
+import Dashboard from "./pages/Dashboard";
+import Organizations from "./pages/Organizations";
+import Repositories from "./pages/Repositories";
+import Grants from "./pages/Grants";
+import Activity from "./pages/Activity";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <p className="text-2xl font-bold text-center mt-20">Home</p>,
+    element: <Navbar />,
     children: [
-      {},
+      { index: true, element: <Dashboard /> },
+      { path: "organizations", element: <Organizations /> },
+      { path: "repositories", element: <Repositories /> },
+      { path: "grants", element: <Grants /> },
+      { path: "activity", element: <Activity /> },
     ],
   },
 ]);
-
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider theme={theme}>

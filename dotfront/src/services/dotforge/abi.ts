@@ -1,0 +1,159 @@
+export const dotforgeAbi = [
+  {
+    type: "function",
+    name: "createOrg",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "addMember",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "orgId", type: "uint64" },
+      { name: "member", type: "address" },
+      { name: "role", type: "uint8" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "deposit",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "orgId", type: "uint64" },
+      { name: "amount", type: "uint64" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "createRepo",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "orgId", type: "uint64" }],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "storeCommit",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "repoId", type: "uint64" },
+      { name: "branchHash", type: "uint64" },
+      { name: "cidHash", type: "uint64" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getBranch",
+    stateMutability: "view",
+    inputs: [
+      { name: "repoId", type: "uint64" },
+      { name: "branchHash", type: "uint64" },
+    ],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "createGrant",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "orgId", type: "uint64" },
+      { name: "amount", type: "uint64" },
+    ],
+    outputs: [{ type: "uint64" }],
+  },
+  {
+    type: "function",
+    name: "assignGrant",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "grantId", type: "uint64" },
+      { name: "assignee", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "submitGrant",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "grantId", type: "uint64" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "submitVerdict",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "grantId", type: "uint64" },
+      { name: "approved", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "registerAuditor",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "auditor", type: "address" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "storeCommitCid",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "repoId", type: "uint64" },
+      { name: "branchHash", type: "uint64" },
+      { name: "cid", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getCommitCid",
+    stateMutability: "view",
+    inputs: [
+      { name: "repoId", type: "uint64" },
+      { name: "branchHash", type: "uint64" },
+    ],
+    outputs: [{ type: "bytes" }],
+  },
+  {
+    type: "function",
+    name: "storeRepoPubkey",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "repoId", type: "uint64" },
+      { name: "pubkey", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getRepoPubkey",
+    stateMutability: "view",
+    inputs: [{ name: "repoId", type: "uint64" }],
+    outputs: [{ type: "bytes" }],
+  },
+  {
+    type: "function",
+    name: "storeRepoPrivkey",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "repoId", type: "uint64" },
+      { name: "privkey", type: "bytes" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getRepoPrivkey",
+    stateMutability: "view",
+    inputs: [{ name: "repoId", type: "uint64" }],
+    outputs: [{ type: "bytes" }],
+  },
+] as const;
+
+export type DotForgeAbi = typeof dotforgeAbi;
