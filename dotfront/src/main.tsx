@@ -8,6 +8,7 @@ import Navbar from "./components/navbar";
 import Dashboard from "./pages/Dashboard";
 import Organizations from "./pages/Organizations";
 import Repositories from "./pages/Repositories";
+import Grants from "./pages/Grants";
 
 const router = createBrowserRouter([
   {
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: "organizations", element: <Organizations /> },
       { path: "repositories", element: <Repositories /> },
+      { path: "grants", element: <Grants /> },
     ],
   },
 ]);

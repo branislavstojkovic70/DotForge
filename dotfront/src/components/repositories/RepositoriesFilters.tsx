@@ -46,6 +46,7 @@ export default function RepositoriesFilters({ filters, languages, onChange }: Pr
         size="small"
         value={filters.query}
         onChange={(e) => onChange({ ...filters, query: e.target.value })}
+        //@ts-ignore
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
