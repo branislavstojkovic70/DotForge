@@ -19,4 +19,13 @@ interface DotForge {
     function getRepoPubkey(uint64 repoId) external view returns (bytes memory);
     function storeRepoPrivkey(uint64 repoId, bytes calldata privkey) external;
     function getRepoPrivkey(uint64 repoId) external view returns (bytes memory);
+    function getOrgBalance(uint64 orgId) external view returns (uint64);
+    function getMemberRole(uint64 orgId, address member) external view returns (uint8);
+    function getOrgCount() external view returns (uint64);
+    function getRepoCount() external view returns (uint64);
+    function getRepoOrg(uint64 repoId) external view returns (uint64);
+    function getGrantStatus(uint64 grantId) external view returns (uint8);
+    function getGrantAmount(uint64 grantId) external view returns (uint64);
+    function getGrantOrg(uint64 grantId) external view returns (uint64);
+    function getGrantCount() external view returns (uint64);
 }
