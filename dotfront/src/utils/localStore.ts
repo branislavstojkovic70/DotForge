@@ -92,6 +92,14 @@ export type StoredGrant = {
   txHash: string;
   createdBy: string;
   createdAt: string;
+  assignee?: string;
+  assignedTxHash?: string;
+  assignedAt?: string;
+  submittedTxHash?: string;
+  submittedAt?: string;
+  verdictTxHash?: string;
+  verdictAt?: string;
+  statusCode?: number;
 };
 
 function readJson<T>(key: string): T | null {
@@ -221,6 +229,22 @@ export function getStoredGrants(): StoredGrant[] {
 
 export function getStoredGrantsByOrg(orgId: string): StoredGrant[] {
   return getStoredGrants().filter((g) => g.orgId === orgId);
+}
+
+export function getStoredGrant(grantId: string): StoredGrant | null {
+  return readJson<StoredGrant>(`${GRANT_PREFIX}${grantId}`);
+}
+
+export function updateStoredGrant(
+  grantId: string,
+  patch: Partial<StoredGrant>
+): StoredGrant | null {
+  const existing = getStoredGrant(grantId);
+  if (!existing) return null;
+  const next = { ...existing, ...patch };
+  localStorage.setItem(`${GRANT_PREFIX}${grantId}`, JSON.stringify(next));
+  notify();
+  return next;
 }
 
 export function formatRelativeTime(iso: string): string {

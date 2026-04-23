@@ -405,26 +405,51 @@ export function useGrants() {
 
   const grants = useMemo<GrantDetail[]>(() => {
     const orgMap = new Map(storedOrgs.map((o) => [o.orgId, o]));
+    const statusFromCode = (code: number | undefined): GrantStatus => {
+      switch (code) {
+        case 1:
+          return "Active";
+        case 2:
+          return "Under Review";
+        case 3:
+          return "Completed";
+        case 4:
+          return "Rejected";
+        case 0:
+        default:
+          return "Draft";
+      }
+    };
+
     const realGrants: GrantDetail[] = storedGrants.map((g) => {
       const org = orgMap.get(g.orgId);
       const milestones: GrantMilestone[] = g.milestones.map((m) => ({
         id: m.id,
         title: m.title,
         amount: m.amount,
-        completed: false,
+        completed: (g.statusCode ?? 0) >= 3,
       }));
+      const status = statusFromCode(g.statusCode);
+      const progress =
+        status === "Completed"
+          ? 100
+          : status === "Under Review"
+            ? 80
+            : status === "Active"
+              ? 40
+              : 0;
       return {
-        id: `grant-${g.grantId}`,
+        id: `grant-chain-${g.grantId}`,
         title: g.title,
         description: g.description,
         organization: org?.name ?? `Org #${g.orgId}`,
         organizationColor: org?.avatarColor ?? "#E6007A",
         category: g.category as GrantCategory,
-        status: "Draft",
+        status,
         amountRequested: Number(g.amount),
-        amountPaid: 0,
+        amountPaid: status === "Completed" ? Number(g.amount) : 0,
         currency: g.currency,
-        progress: 0,
+        progress,
         milestones,
         teamSize: g.teamSize,
         appliedAt: formatRelativeTime(g.createdAt),
