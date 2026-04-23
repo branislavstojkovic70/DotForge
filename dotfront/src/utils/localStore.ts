@@ -3,6 +3,7 @@ import type { OrgCategory } from "../hooks/useOrganizations";
 const ORG_PREFIX = "dotforge:org:";
 const REPO_PREFIX = "dotforge:repo:";
 const DEPOSIT_PREFIX = "dotforge:deposit:";
+const MEMBER_PREFIX = "dotforge:member:";
 
 export type StoredOrg = {
   orgId: string;
@@ -34,6 +35,32 @@ export type StoredDeposit = {
   from: string;
   txHash: string;
   createdAt: string;
+};
+
+export type MemberRole = "Owner" | "Editor" | "Reader" | "Auditor";
+
+export type StoredMember = {
+  orgId: string;
+  address: string;
+  role: MemberRole;
+  label?: string;
+  txHash: string;
+  addedBy: string;
+  createdAt: string;
+};
+
+export const ROLE_TO_ID: Record<MemberRole, number> = {
+  Owner: 1,
+  Editor: 2,
+  Reader: 3,
+  Auditor: 4,
+};
+
+export const ID_TO_ROLE: Record<number, MemberRole | undefined> = {
+  1: "Owner",
+  2: "Editor",
+  3: "Reader",
+  4: "Auditor",
 };
 
 function readJson<T>(key: string): T | null {
@@ -123,6 +150,28 @@ export function getStoredDeposits(): StoredDeposit[] {
 
 export function getStoredDepositsByOrg(orgId: string): StoredDeposit[] {
   return getStoredDeposits().filter((d) => d.orgId === orgId);
+}
+
+function memberKey(orgId: string, address: string): string {
+  return `${MEMBER_PREFIX}${orgId}:${address.toLowerCase()}`;
+}
+
+export function saveMember(member: StoredMember): void {
+  localStorage.setItem(
+    memberKey(member.orgId, member.address),
+    JSON.stringify(member)
+  );
+  notify();
+}
+
+export function getStoredMembers(): StoredMember[] {
+  return readAllByPrefix<StoredMember>(MEMBER_PREFIX).sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
+  );
+}
+
+export function getStoredMembersByOrg(orgId: string): StoredMember[] {
+  return getStoredMembers().filter((m) => m.orgId === orgId);
 }
 
 export function formatRelativeTime(iso: string): string {

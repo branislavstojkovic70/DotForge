@@ -4,7 +4,9 @@ import {
   Button,
   Chip,
   Divider,
+  IconButton,
   Stack,
+  Tooltip,
   Typography,
   alpha,
 } from "@mui/material";
@@ -13,11 +15,17 @@ import {
   ArrowBack,
   Apartment,
   CalendarToday,
+  ContentCopy,
+  Edit,
   FolderOutlined,
+  GroupAdd,
   Launch,
   Paid,
+  Person,
   Public,
+  ShieldOutlined,
   Verified,
+  VisibilityOutlined,
 } from "@mui/icons-material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -26,11 +34,14 @@ import { useRepositories } from "../hooks/useRepositories";
 import { useGrants } from "../hooks/useGrants";
 import { useActivity } from "../hooks/useActivity";
 import { useDotForge } from "../hooks/useDotForge";
+import { useStoredMembers } from "../hooks/useStoredData";
 import DepositDialog from "../components/deposit/DepositDialog";
+import AddMemberDialog from "../components/organizations/AddMemberDialog";
 import RepositoryRow from "../components/repositories/RepositoryRow";
 import GrantCard from "../components/grants/GrantCard";
 import ActivityEventRow from "../components/activity/ActivityEventRow";
-import { getStoredOrg } from "../utils/localStore";
+import { getStoredOrg, type MemberRole, type StoredMember } from "../utils/localStore";
+import toast from "react-hot-toast";
 
 const roleStyles: Record<OrgRole, { bg: string; fg: string }> = {
   Owner: { bg: alpha("#E6007A", 0.18), fg: "#FF4AA6" },
@@ -56,8 +67,10 @@ export default function OrganizationDetail() {
   const { service } = useDotForge();
 
   const [depositOpen, setDepositOpen] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [onChainBalance, setOnChainBalance] = useState<bigint | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const storedMembers = useStoredMembers();
 
   const organization = useMemo(
     () => allOrganizations.find((o) => o.id === id),
@@ -88,6 +101,11 @@ export default function OrganizationDetail() {
         ? allEvents.filter((e) => e.organization === organization.name)
         : [],
     [allEvents, organization]
+  );
+
+  const members = useMemo(
+    () => (id ? storedMembers.filter((m) => m.orgId === id) : []),
+    [storedMembers, id]
   );
 
   useEffect(() => {
@@ -323,6 +341,22 @@ export default function OrganizationDetail() {
               >
                 New Repository
               </Button>
+              <Button
+                variant="outlined"
+                startIcon={<GroupAdd />}
+                onClick={() => setAddMemberOpen(true)}
+                sx={{
+                  textTransform: "none",
+                  borderColor: alpha("#B388FF", 0.4),
+                  color: "#B388FF",
+                  "&:hover": {
+                    borderColor: "#B388FF",
+                    backgroundColor: alpha("#B388FF", 0.08),
+                  },
+                }}
+              >
+                Invite member
+              </Button>
             </Stack>
           </Box>
 
@@ -380,7 +414,12 @@ export default function OrganizationDetail() {
         <StatCard
           icon={<Apartment sx={{ fontSize: 18 }} />}
           label="Members"
-          value={organization.members.toString()}
+          value={
+            isChain
+              ? (members.length + 1).toString()
+              : organization.members.toString()
+          }
+          hint={isChain ? "incl. owner" : undefined}
           color="#64B5F6"
         />
         <StatCard
@@ -416,6 +455,72 @@ export default function OrganizationDetail() {
           color="#58AD95"
         />
       </Box>
+
+      {/* Members */}
+      <Section
+        title="Members"
+        count={members.length}
+        action={
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<GroupAdd sx={{ fontSize: 16 }} />}
+            onClick={() => setAddMemberOpen(true)}
+            sx={{
+              textTransform: "none",
+              borderColor: alpha("#B388FF", 0.4),
+              color: "#B388FF",
+              "&:hover": {
+                borderColor: "#B388FF",
+                backgroundColor: alpha("#B388FF", 0.08),
+              },
+            }}
+          >
+            Invite member
+          </Button>
+        }
+      >
+        {members.length === 0 ? (
+          <EmptyState
+            icon={<Person sx={{ fontSize: 28, color: "text.secondary" }} />}
+            title="No members added yet"
+            description={
+              isChain
+                ? "Add members on-chain via the addMember transaction. Only the Owner can assign roles."
+                : "This is a mock organization. Real members are added on-chain through the contract."
+            }
+            action={
+              isChain ? (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<GroupAdd />}
+                  onClick={() => setAddMemberOpen(true)}
+                  sx={{ textTransform: "none" }}
+                >
+                  Invite first member
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gap: 1.5,
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                lg: "repeat(3, 1fr)",
+              },
+            }}
+          >
+            {members.map((member) => (
+              <MemberRow key={`${member.orgId}-${member.address}`} member={member} />
+            ))}
+          </Box>
+        )}
+      </Section>
 
       {/* Repositories */}
       <Section
@@ -549,6 +654,134 @@ export default function OrganizationDetail() {
         onClose={() => setDepositOpen(false)}
         orgId={organization.id}
       />
+
+      <AddMemberDialog
+        open={addMemberOpen}
+        onClose={() => setAddMemberOpen(false)}
+        orgId={organization.id}
+        orgName={organization.name}
+      />
+    </Box>
+  );
+}
+
+const roleBadgeStyles: Record<
+  MemberRole,
+  { bg: string; fg: string; icon: React.ReactNode }
+> = {
+  Owner: {
+    bg: alpha("#E6007A", 0.18),
+    fg: "#FF4AA6",
+    icon: <ShieldOutlined sx={{ fontSize: 12 }} />,
+  },
+  Editor: {
+    bg: alpha("#58AD95", 0.18),
+    fg: "#58AD95",
+    icon: <Edit sx={{ fontSize: 12 }} />,
+  },
+  Reader: {
+    bg: alpha("#64B5F6", 0.18),
+    fg: "#64B5F6",
+    icon: <VisibilityOutlined sx={{ fontSize: 12 }} />,
+  },
+  Auditor: {
+    bg: alpha("#B388FF", 0.18),
+    fg: "#B388FF",
+    icon: <ShieldOutlined sx={{ fontSize: 12 }} />,
+  },
+};
+
+function avatarColorFor(address: string): string {
+  const palette = ["#E6007A", "#58AD95", "#64B5F6", "#FFC107", "#B388FF", "#FF4AA6", "#53CBC9"];
+  let hash = 0;
+  for (let i = 0; i < address.length; i++) {
+    hash = (hash * 31 + address.charCodeAt(i)) >>> 0;
+  }
+  return palette[hash % palette.length];
+}
+
+function MemberRow({ member }: { member: StoredMember }) {
+  const style = roleBadgeStyles[member.role];
+  const short = `${member.address.slice(0, 6)}…${member.address.slice(-4)}`;
+  const displayName = member.label || short;
+
+  const copyAddress = () => {
+    navigator.clipboard
+      .writeText(member.address)
+      .then(() => toast.success("Address copied"))
+      .catch(() => toast.error("Copy failed"));
+  };
+
+  return (
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        backgroundColor: "#1E1E1E",
+        border: `1px solid ${alpha("#FFFFFF", 0.06)}`,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        transition: "border-color 150ms ease",
+        "&:hover": {
+          borderColor: alpha("#B388FF", 0.3),
+        },
+      }}
+    >
+      <Avatar
+        sx={{
+          bgcolor: avatarColorFor(member.address),
+          color: "#141414",
+          fontWeight: 700,
+          width: 40,
+          height: 40,
+          fontSize: 14,
+          flexShrink: 0,
+        }}
+      >
+        {(member.label?.charAt(0) || member.address.slice(2, 3)).toUpperCase()}
+      </Avatar>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }} noWrap>
+            {displayName}
+          </Typography>
+          <Chip
+            size="small"
+            icon={<Box sx={{ display: "flex", color: style.fg }}>{style.icon}</Box>}
+            label={member.role}
+            sx={{
+              height: 20,
+              fontSize: 11,
+              fontWeight: 600,
+              backgroundColor: style.bg,
+              color: style.fg,
+              ".MuiChip-icon": { ml: 0.5, mr: -0.25 },
+            }}
+          />
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              fontFamily: "monospace",
+            }}
+            noWrap
+          >
+            {short}
+          </Typography>
+          <Tooltip title="Copy address">
+            <IconButton
+              size="small"
+              onClick={copyAddress}
+              sx={{ color: "text.secondary", p: 0.25 }}
+            >
+              <ContentCopy sx={{ fontSize: 11 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
     </Box>
   );
 }

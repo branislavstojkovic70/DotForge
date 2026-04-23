@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from "react";
 import {
   getStoredDeposits,
+  getStoredMembers,
   getStoredOrgs,
   getStoredRepos,
   subscribeStore,
   type StoredDeposit,
+  type StoredMember,
   type StoredOrg,
   type StoredRepo,
 } from "../utils/localStore";
@@ -12,11 +14,13 @@ import {
 let orgCache: StoredOrg[] = [];
 let repoCache: StoredRepo[] = [];
 let depositCache: StoredDeposit[] = [];
+let memberCache: StoredMember[] = [];
 
 function refreshAll(): void {
   orgCache = getStoredOrgs();
   repoCache = getStoredRepos();
   depositCache = getStoredDeposits();
+  memberCache = getStoredMembers();
 }
 
 refreshAll();
@@ -58,5 +62,13 @@ export function useStoredDeposits(): StoredDeposit[] {
     subscribe,
     () => depositCache,
     () => depositCache
+  );
+}
+
+export function useStoredMembers(): StoredMember[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => memberCache,
+    () => memberCache
   );
 }
