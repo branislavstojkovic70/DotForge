@@ -138,23 +138,6 @@ export async function storeCommit(
   return callWrite<[bigint, bigint, bigint], void>("storeCommit", [repoId, branchHash, cidHash]);
 }
 
-export async function storeCommitCid(
-  repoId: bigint,
-  branch: string,
-  cid: Hex
-): Promise<TxResult> {
-  const branchHash = await hashToU64(branch);
-  return callWrite<[bigint, bigint, Hex], void>("storeCommitCid", [repoId, branchHash, cid]);
-}
-
-export async function storeRepoPubkey(repoId: bigint, pubkey: Hex): Promise<TxResult> {
-  return callWrite<[bigint, Hex], void>("storeRepoPubkey", [repoId, pubkey]);
-}
-
-export async function storeRepoPrivkey(repoId: bigint, privkey: Hex): Promise<TxResult> {
-  return callWrite<[bigint, Hex], void>("storeRepoPrivkey", [repoId, privkey]);
-}
-
 // ── Read ──────────────────────────────────────────────────────────────────
 
 export async function getOrgCount(): Promise<bigint> {
@@ -198,19 +181,6 @@ export async function getBranch(repoId: bigint, branch: string): Promise<bigint>
   return callRead<[bigint, bigint], bigint>("getBranch", [repoId, branchHash]);
 }
 
-export async function getCommitCid(repoId: bigint, branch: string): Promise<Hex> {
-  const branchHash = await hashToU64(branch);
-  return callRead<[bigint, bigint], Hex>("getCommitCid", [repoId, branchHash]);
-}
-
-export async function getRepoPubkey(repoId: bigint): Promise<Hex> {
-  return callRead<[bigint], Hex>("getRepoPubkey", [repoId]);
-}
-
-export async function getRepoPrivkey(repoId: bigint): Promise<Hex> {
-  return callRead<[bigint], Hex>("getRepoPrivkey", [repoId]);
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 export const GRANT_STATUS = {
@@ -236,9 +206,6 @@ export const dotforgeService = {
   deposit,
   createRepo,
   storeCommit,
-  storeCommitCid,
-  storeRepoPubkey,
-  storeRepoPrivkey,
   createGrant,
   assignGrant,
   submitGrant,
@@ -254,9 +221,6 @@ export const dotforgeService = {
   getGrantAmount,
   getGrantOrg,
   getBranch,
-  getCommitCid,
-  getRepoPubkey,
-  getRepoPrivkey,
 };
 
 export type DotForgeService = typeof dotforgeService;

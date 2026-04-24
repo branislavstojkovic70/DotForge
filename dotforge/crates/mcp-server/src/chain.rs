@@ -2,7 +2,7 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::process::Command;
 
-pub const CONTRACT: &str = "0x9468ed655c0da9898ed0885cd4557f7906bc3a30";
+pub const CONTRACT: &str = "0x5a34a12dd68cc6c56565f87f10c3173e808ee8be";
 pub const RPC: &str = "https://services.polkadothub-rpc.com/testnet";
 pub const WALLET: &str = "dotforge-deployer";
 pub const CALLER: &str = "0xB79AFcc9e941E022e2D00ba94778FEec424A3108";
@@ -18,19 +18,60 @@ pub fn encode_u64(val: u64) -> String {
     format!("{:064x}", val)
 }
 
-fn encode_bytes_arg(data: &[u8], offset: usize) -> String {
-    let len = data.len();
-    let padded_len = (len + 31) / 32 * 32;
-    let mut hex_data = hex::encode(data);
-    while hex_data.len() < padded_len * 2 {
-        hex_data.push('0');
+fn bytes_to_u64x4(b: &[u8]) -> [u64; 4] {
+    let mut arr = [0u8; 32];
+    let len = b.len().min(32);
+    arr[..len].copy_from_slice(&b[..len]);
+    [
+        u64::from_le_bytes(arr[0..8].try_into().unwrap()),
+        u64::from_le_bytes(arr[8..16].try_into().unwrap()),
+        u64::from_le_bytes(arr[16..24].try_into().unwrap()),
+        u64::from_le_bytes(arr[24..32].try_into().unwrap()),
+    ]
+}
+
+fn bytes_to_u64x6(b: &[u8]) -> [u64; 6] {
+    let mut arr = [0u8; 48];
+    let len = b.len().min(48);
+    arr[..len].copy_from_slice(&b[..len]);
+    [
+        u64::from_le_bytes(arr[0..8].try_into().unwrap()),
+        u64::from_le_bytes(arr[8..16].try_into().unwrap()),
+        u64::from_le_bytes(arr[16..24].try_into().unwrap()),
+        u64::from_le_bytes(arr[24..32].try_into().unwrap()),
+        u64::from_le_bytes(arr[32..40].try_into().unwrap()),
+        u64::from_le_bytes(arr[40..48].try_into().unwrap()),
+    ]
+}
+
+fn u64x4_result_to_bytes(hex: &str) -> Vec<u8> {
+    let hex = hex.trim_start_matches("0x");
+    if hex.len() < 256 {
+        return vec![0u8; 32];
     }
-    format!(
-        "{}{}{}",
-        format!("{:064x}", offset as u64),
-        format!("{:064x}", len as u64),
-        hex_data
-    )
+    let mut result = vec![0u8; 32];
+    for i in 0..4 {
+        let chunk = &hex[i * 64..(i + 1) * 64];
+        let val = u64::from_str_radix(&chunk[48..], 16).unwrap_or(0);
+        result[i * 8..(i + 1) * 8].copy_from_slice(&val.to_le_bytes());
+    }
+    result
+}
+
+fn u64x6_result_to_string(hex: &str) -> String {
+    let hex = hex.trim_start_matches("0x");
+    if hex.len() < 384 {
+        return String::new();
+    }
+    let mut result = vec![0u8; 48];
+    for i in 0..6 {
+        let chunk = &hex[i * 64..(i + 1) * 64];
+        let val = u64::from_str_radix(&chunk[48..], 16).unwrap_or(0);
+        result[i * 8..(i + 1) * 8].copy_from_slice(&val.to_le_bytes());
+    }
+    // trim null bytes i konvertuj u string
+    let trimmed: Vec<u8> = result.into_iter().take_while(|&b| b != 0).collect();
+    String::from_utf8(trimmed).unwrap_or_default()
 }
 
 fn cast_send(calldata: &str) -> Result<String> {
@@ -82,19 +123,6 @@ async fn eth_call(calldata: &str) -> Result<String> {
     Ok(res["result"].as_str().unwrap_or("0x").to_string())
 }
 
-fn decode_bytes_result(hex: &str) -> Vec<u8> {
-    let hex = hex.trim_start_matches("0x");
-    if hex.len() < 128 {
-        return vec![];
-    }
-    // skip first 32 bytes (offset pointer)
-    let len = u64::from_str_radix(&hex[64..128], 16).unwrap_or(0) as usize;
-    if hex.len() < 128 + len * 2 {
-        return vec![];
-    }
-    hex::decode(&hex[128..128 + len * 2]).unwrap_or_default()
-}
-
 // ── Org / Repo ────────────────────────────────────────────────────────────
 
 pub fn create_org() -> Result<String> {
@@ -105,57 +133,78 @@ pub fn create_repo(org_id: u64) -> Result<String> {
     cast_send(&format!("0x11b334ec{}", encode_u64(org_id)))
 }
 
-// ── Keypair ───────────────────────────────────────────────────────────────
+// ── Keypair (4x u64) ──────────────────────────────────────────────────────
 
 pub fn store_repo_pubkey(repo_id: u64, pubkey: &[u8]) -> Result<String> {
+    let k = bytes_to_u64x4(pubkey);
     let calldata = format!(
-        "0x7d9b17f4{}{}",
+        "0x5c3f3743{}{}{}{}{}",
         encode_u64(repo_id),
-        encode_bytes_arg(pubkey, 64)  // 2 words * 32 = 64
+        encode_u64(k[0]),
+        encode_u64(k[1]),
+        encode_u64(k[2]),
+        encode_u64(k[3]),
     );
     cast_send(&calldata)
 }
 
 pub fn store_repo_privkey(repo_id: u64, privkey: &[u8]) -> Result<String> {
+    let k = bytes_to_u64x4(privkey);
     let calldata = format!(
-        "0x774806c5{}{}",
+        "0xa74b2d9a{}{}{}{}{}",
         encode_u64(repo_id),
-        encode_bytes_arg(privkey, 64)  // 2 words * 32 = 64
+        encode_u64(k[0]),
+        encode_u64(k[1]),
+        encode_u64(k[2]),
+        encode_u64(k[3]),
     );
     cast_send(&calldata)
 }
 
 pub async fn get_repo_pubkey(repo_id: u64) -> Result<Vec<u8>> {
     let result = eth_call(&format!("0x64e5a77f{}", encode_u64(repo_id))).await?;
-    Ok(decode_bytes_result(&result))
+    Ok(u64x4_result_to_bytes(&result))
 }
 
 pub async fn get_repo_privkey(repo_id: u64) -> Result<Vec<u8>> {
     let result = eth_call(&format!("0x5d1bfdcc{}", encode_u64(repo_id))).await?;
-    Ok(decode_bytes_result(&result))
+    Ok(u64x4_result_to_bytes(&result))
 }
 
-// ── Commit CID ────────────────────────────────────────────────────────────
+// ── Commit CID (6x u64) ───────────────────────────────────────────────────
 
 pub fn store_commit_cid(repo_id: u64, branch_hash: u64, cid: &str) -> Result<String> {
+    // čuvaj CID lokalno
+    let store_path = format!("/tmp/dotforge_cid_{}_{}.txt", repo_id, branch_hash);
+    std::fs::write(&store_path, cid)?;
+
+    // upiši hash na chain kao potvrda
+    let cid_hash = hash_string(cid);
     let calldata = format!(
-        "0x5a3c6c2f{}{}{}",
+        "0xc4480d34{}{}{}",
         encode_u64(repo_id),
         encode_u64(branch_hash),
-        encode_bytes_arg(cid.as_bytes(), 96)  // 3 words * 32 = 96
+        encode_u64(cid_hash),
     );
     cast_send(&calldata)
 }
 
 pub async fn get_commit_cid(repo_id: u64, branch_hash: u64) -> Result<String> {
+    // provjeri da chain ima hash
     let calldata = format!(
-        "0x36ea9a44{}{}",
+        "0xe2551191{}{}",
         encode_u64(repo_id),
         encode_u64(branch_hash)
     );
     let result = eth_call(&calldata).await?;
-    let bytes = decode_bytes_result(&result);
-    Ok(String::from_utf8(bytes).unwrap_or_default())
+    let hex = result.trim_start_matches("0x");
+    if hex.is_empty() || hex.chars().all(|c| c == '0') {
+        return Ok(String::new());
+    }
+
+    // čitaj CID lokalno
+    let store_path = format!("/tmp/dotforge_cid_{}_{}.txt", repo_id, branch_hash);
+    Ok(std::fs::read_to_string(&store_path).unwrap_or_default())
 }
 
 // ── Legacy ────────────────────────────────────────────────────────────────

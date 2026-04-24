@@ -13,12 +13,12 @@ interface DotForge {
     function submitGrant(uint64 grantId) external;
     function submitVerdict(uint64 grantId, bool approved) external;
     function registerAuditor(address auditor) external;
-    function storeCommitCid(uint64 repoId, uint64 branchHash, bytes calldata cid) external;
-    function getCommitCid(uint64 repoId, uint64 branchHash) external view returns (bytes memory);
-    function storeRepoPubkey(uint64 repoId, bytes calldata pubkey) external;
-    function getRepoPubkey(uint64 repoId) external view returns (bytes memory);
-    function storeRepoPrivkey(uint64 repoId, bytes calldata privkey) external;
-    function getRepoPrivkey(uint64 repoId) external view returns (bytes memory);
+    function storeCommitCid(uint64 repoId, uint64 branchHash, uint64 c0, uint64 c1, uint64 c2, uint64 c3, uint64 c4, uint64 c5) external;
+    function getCommitCid(uint64 repoId, uint64 branchHash) external view returns (uint64, uint64, uint64, uint64, uint64, uint64);
+    function storeRepoPubkey(uint64 repoId, uint64 k0, uint64 k1, uint64 k2, uint64 k3) external;
+    function getRepoPubkey(uint64 repoId) external view returns (uint64, uint64, uint64, uint64);
+    function storeRepoPrivkey(uint64 repoId, uint64 k0, uint64 k1, uint64 k2, uint64 k3) external;
+    function getRepoPrivkey(uint64 repoId) external view returns (uint64, uint64, uint64, uint64);
     function getOrgBalance(uint64 orgId) external view returns (uint64);
     function getMemberRole(uint64 orgId, address member) external view returns (uint8);
     function getOrgCount() external view returns (uint64);

@@ -30,8 +30,19 @@ export default function GrantCard({ grant }: Props) {
   const status = statusStyles[grant.status];
   const completedMs = grant.milestones.filter((m) => m.completed).length;
 
+  const goToDetail = () => navigate(`/grants/${grant.id}`);
+
   return (
     <Box
+      onClick={goToDetail}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          goToDetail();
+        }
+      }}
       sx={{
         p: 2.5,
         borderRadius: 3,
@@ -40,10 +51,15 @@ export default function GrantCard({ grant }: Props) {
         display: "flex",
         flexDirection: "column",
         gap: 2,
+        cursor: "pointer",
         transition: "border-color 150ms ease, transform 150ms ease",
         "&:hover": {
           borderColor: alpha("#E6007A", 0.4),
           transform: "translateY(-2px)",
+        },
+        "&:focus-visible": {
+          outline: "none",
+          borderColor: "#E6007A",
         },
       }}
     >
@@ -203,7 +219,10 @@ export default function GrantCard({ grant }: Props) {
         <Button
           size="small"
           variant="outlined"
-          onClick={() => navigate(`/grants/${grant.id}`)}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToDetail();
+          }}
           sx={{
             textTransform: "none",
             borderColor: alpha("#FFFFFF", 0.12),

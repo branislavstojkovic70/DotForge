@@ -593,12 +593,53 @@ export default function OrganizationDetail() {
       </Section>
 
       {/* Grants */}
-      <Section title="Grants" count={grants.length}>
+      <Section
+        title="Grants"
+        count={grants.length}
+        action={
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Paid sx={{ fontSize: 16 }} />}
+            onClick={() =>
+              navigate("/grants/new", { state: { orgId: organization.id } })
+            }
+            sx={{
+              textTransform: "none",
+              borderColor: alpha("#FFFFFF", 0.15),
+              color: "#F5F5F5",
+              "&:hover": {
+                borderColor: "#E6007A",
+                backgroundColor: alpha("#E6007A", 0.08),
+              },
+            }}
+          >
+            New grant
+          </Button>
+        }
+      >
         {grants.length === 0 ? (
           <EmptyState
             icon={<Paid sx={{ fontSize: 28, color: "text.secondary" }} />}
             title="No grants yet"
             description="This organization hasn't submitted any grant applications."
+            action={
+              isChain ? (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<Paid />}
+                  onClick={() =>
+                    navigate("/grants/new", {
+                      state: { orgId: organization.id },
+                    })
+                  }
+                  sx={{ textTransform: "none" }}
+                >
+                  Create first grant
+                </Button>
+              ) : undefined
+            }
           />
         ) : (
           <Box

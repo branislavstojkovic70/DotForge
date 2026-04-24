@@ -1,14 +1,20 @@
-import { Avatar, Box, Chip, Stack, Tooltip, Typography, alpha } from "@mui/material";
+import { Avatar, Box, Chip, IconButton, Stack, Tooltip, Typography, alpha } from "@mui/material";
 import {
   BugReport,
   CallSplit,
+  ContentCopy,
+  History,
   Lock,
   MergeType,
   Paid,
   StarBorder,
+  Terminal,
 } from "@mui/icons-material";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { languageColors, type RepositoryDetail } from "../../hooks/useRepositories";
+import { useDotForge } from "../../hooks/useDotForge";
 
 type Props = {
   repository: RepositoryDetail;
@@ -116,6 +122,10 @@ export default function RepositoryRow({ repository }: Props) {
             />
           ))}
         </Box>
+
+        {repository.source === "chain" && (
+          <LatestCommitHint repoId={repository.id} />
+        )}
       </Box>
 
       <Stack
@@ -176,6 +186,121 @@ function MetaItem({ icon, label }: { icon: React.ReactNode; label: string }) {
       <Typography variant="caption" sx={{ color: "text.secondary" }}>
         {label}
       </Typography>
+    </Box>
+  );
+}
+
+function LatestCommitHint({ repoId }: { repoId: string }) {
+  const { service } = useDotForge();
+  const [commit, setCommit] = useState<bigint | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    service
+      .getBranch(BigInt(repoId), "main")
+      .then((cid) => {
+        if (!cancelled) setCommit(cid);
+      })
+      .catch(() => {
+        if (!cancelled) setCommit(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repoId, service]);
+
+  const command = `dotforge pull ${repoId} main`;
+  const commitText = loading
+    ? "Loading…"
+    : commit === null || commit === 0n
+      ? "No commits yet"
+      : `0x${commit.toString(16).padStart(16, "0")}`;
+
+  const copy = (value: string, label: string) => {
+    navigator.clipboard
+      .writeText(value)
+      .then(() => toast.success(`${label} copied`))
+      .catch(() => toast.error("Copy failed"));
+  };
+
+  return (
+    <Box
+      onClick={(e) => e.stopPropagation()}
+      sx={{
+        mt: 1.25,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 1,
+        alignItems: "center",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          px: 1,
+          py: 0.5,
+          borderRadius: 1.5,
+          backgroundColor: alpha("#FFFFFF", 0.04),
+          border: `1px solid ${alpha("#FFFFFF", 0.06)}`,
+        }}
+      >
+        <History sx={{ fontSize: 14, color: "text.secondary" }} />
+        <Typography
+          variant="caption"
+          sx={{ fontFamily: "monospace", color: "text.secondary" }}
+        >
+          {commitText}
+        </Typography>
+        {commit !== null && commit !== 0n && (
+          <Tooltip title="Copy commit hash">
+            <IconButton
+              size="small"
+              onClick={() =>
+                copy(`0x${commit.toString(16).padStart(16, "0")}`, "Commit hash")
+              }
+              sx={{ color: "text.secondary", p: 0.25 }}
+            >
+              <ContentCopy sx={{ fontSize: 12 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          px: 1,
+          py: 0.5,
+          borderRadius: 1.5,
+          backgroundColor: alpha("#58AD95", 0.08),
+          border: `1px solid ${alpha("#58AD95", 0.2)}`,
+        }}
+      >
+        <Terminal sx={{ fontSize: 14, color: "#58AD95" }} />
+        <Typography
+          variant="caption"
+          sx={{ fontFamily: "monospace", color: "#F5F5F5" }}
+        >
+          {command}
+        </Typography>
+        <Tooltip title="Copy command">
+          <IconButton
+            size="small"
+            onClick={() => copy(command, "Command")}
+            sx={{ color: "text.secondary", p: 0.25 }}
+          >
+            <ContentCopy sx={{ fontSize: 12 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }
