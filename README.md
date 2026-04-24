@@ -1,8 +1,8 @@
 # DotForge
 
-Decentralized git + grant system built on Polkadot. Organizations create grants, developers submit code via encrypted commits, AI agents audit submissions, and escrow releases DOT automatically.
+Decentralized version control + grant system built on Polkadot. Organizations create grants, developers submit code via encrypted commits, AI agents audit submissions, and escrow releases DOT automatically.
 
-Built for the Polkadot Blockchain Paradise hackathon using PolkaVM (PVM) — Polkadot's new EVM-compatible execution environment.
+Built for the Polkadot Protocol Builders program using PolkaVM (PVM) — Polkadot's new EVM-compatible execution environment.
 
 ---
 
