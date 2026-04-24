@@ -40,7 +40,7 @@ fn tools_list() -> Value {
         "tools": [
             {
                 "name": "init_repo",
-                "description": "Initialize repo with X25519 keypair. Stores both keys on chain (simulated TEE).",
+                "description": "Initialize repo with X25519 keypair. Stores keypair locally (v2: Phala TEE).",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -127,20 +127,38 @@ async fn call_tool(name: &str, args: Value) -> anyhow::Result<Value> {
     }
 }
 
+fn load_keypair(repo_id: u64) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
+    let store_path = format!("/tmp/dotforge_repo_{}.json", repo_id);
+    let data: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(&store_path)
+            .map_err(|_| anyhow::anyhow!("repo not initialized - run: dotforge init {}", repo_id))?
+    )?;
+    let pubkey = hex::decode(data["pubkey"].as_str().unwrap_or(""))?;
+    let privkey = hex::decode(data["privkey"].as_str().unwrap_or(""))?;
+    Ok((pubkey, privkey))
+}
+
 async fn init_repo(args: Value) -> anyhow::Result<Value> {
     let repo_id = args["repo_id"].as_u64().unwrap_or(0);
 
     let keypair = crypto::generate_keypair();
+    let pubkey_hex = hex::encode(&keypair.public);
+    let privkey_hex = hex::encode(&keypair.private);
 
-    chain::store_repo_pubkey(repo_id, &keypair.public)?;
-    chain::store_repo_privkey(repo_id, &keypair.private)?;
+    let store_path = format!("/tmp/dotforge_repo_{}.json", repo_id);
+    let data = serde_json::json!({
+        "repo_id": repo_id,
+        "pubkey": pubkey_hex,
+        "privkey": privkey_hex,
+    });
+    std::fs::write(&store_path, data.to_string())?;
 
     Ok(json!({
         "status": "initialized",
         "repo_id": repo_id,
-        "pubkey": hex::encode(&keypair.public),
-        "privkey": hex::encode(&keypair.private),
-        "note": "both keys stored on chain"
+        "pubkey": pubkey_hex,
+        "privkey": privkey_hex,
+        "note": "keypair stored locally (v2: Phala TEE)"
     }))
 }
 
@@ -150,10 +168,7 @@ async fn git_commit(args: Value) -> anyhow::Result<Value> {
     let message = args["message"].as_str().unwrap_or("").to_string();
     let files   = &args["files"];
 
-    let pubkey = chain::get_repo_pubkey(repo_id).await?;
-    if pubkey.is_empty() {
-        return Err(anyhow::anyhow!("repo not initialized - call init_repo first"));
-    }
+    let (pubkey, _) = load_keypair(repo_id)?;
 
     let blob = serde_json::to_vec(&json!({
         "message": message,
@@ -210,15 +225,7 @@ async fn git_pull(args: Value) -> anyhow::Result<Value> {
     }
 
     let encrypted = ipfs::fetch(&cid).await?;
-
-    let privkey = chain::get_repo_privkey(repo_id).await?;
-    println!("DEBUG privkey len: {}", privkey.len());
-    println!("DEBUG privkey hex: {}", hex::encode(&privkey));
-
-    if privkey.is_empty() {
-        return Err(anyhow::anyhow!("no privkey found on chain for repo"));
-    }
-
+    let (_, privkey) = load_keypair(repo_id)?;
     let decrypted = crypto::decrypt(&encrypted, &privkey)?;
     let commit: Value = serde_json::from_slice(&decrypted)?;
 

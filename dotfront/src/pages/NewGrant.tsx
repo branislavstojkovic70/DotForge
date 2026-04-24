@@ -8,13 +8,13 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useDotForge } from "../hooks/useDotForge";
-import RepositoryForm, {
-  type RepositoryDraft,
-} from "../components/repositories/RepositoryForm";
-import RepositoryPreview from "../components/repositories/RepositoryPreview";
-import { getStoredOrgs, saveRepo } from "../utils/localStore";
+import GrantForm, {
+  type GrantDraft,
+} from "../components/grants/GrantForm";
+import GrantPreview from "../components/grants/GrantPreview";
+import { getStoredOrgs, saveGrant } from "../utils/localStore";
 
-const PUSH_FEE = 10_000_000n;
+const GRANT_FEE = 100_000_000n;
 const ROLE_LABEL: Record<number, string> = {
   0: "None",
   1: "Owner",
@@ -23,23 +23,27 @@ const ROLE_LABEL: Record<number, string> = {
   4: "Auditor",
 };
 
-const makeEmptyDraft = (orgId: string): RepositoryDraft => ({
+const makeEmptyDraft = (orgId: string): GrantDraft => ({
   orgId,
-  name: "",
+  title: "",
   description: "",
-  language: "Rust",
-  visibility: "Public",
-  topics: [],
+  category: "Infrastructure",
+  amount: "",
+  currency: "DOT",
+  deadline: "",
+  teamSize: 1,
+  milestones: [],
 });
 
-export default function NewRepository() {
+export default function NewGrant() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isConnected, connect, isConnecting, service, account } = useDotForge();
 
   const orgs = useMemo(() => getStoredOrgs(), []);
   const preselectedOrgId = (location.state as { orgId?: string } | null)?.orgId;
-  const [draft, setDraft] = useState<RepositoryDraft>(() => {
+
+  const [draft, setDraft] = useState<GrantDraft>(() => {
     const initialOrg =
       (preselectedOrgId && orgs.find((o) => o.orgId === preselectedOrgId)?.orgId) ||
       orgs[0]?.orgId ||
@@ -55,11 +59,17 @@ export default function NewRepository() {
 
   const handleSubmit = async () => {
     if (!selectedOrg) return;
+    const amountNum = BigInt(Math.floor(Number(draft.amount)));
+    if (amountNum <= 0n) {
+      toast.error("Amount must be greater than zero");
+      return;
+    }
+
     setSubmitting(true);
     const toastId = toast.loading("Submitting transaction…");
 
     console.group(
-      `[NewRepository] submit createRepo for org #${selectedOrg.orgId} (${selectedOrg.name})`
+      `[NewGrant] submit createGrant for org #${selectedOrg.orgId} amount=${amountNum}`
     );
     console.log("draft:", draft);
     console.log("selectedOrg:", selectedOrg);
@@ -85,49 +95,61 @@ export default function NewRepository() {
         service.getOrgBalance(orgIdBigint),
       ]);
       console.log("member role:", role, `(${ROLE_LABEL[role] ?? "?"})`);
+
+      const needed = amountNum + GRANT_FEE;
       console.log(
         "org balance:",
         balance.toString(),
-        " needed (PUSH_FEE):",
-        PUSH_FEE.toString()
+        "needed (amount + GRANT_FEE):",
+        needed.toString()
       );
 
-      if (role !== 1 && role !== 2) {
+      if (role !== 1) {
         throw new Error(
-          `Your wallet (${account}) is not Owner/Editor of org #${selectedOrg.orgId} (role=${role}/${ROLE_LABEL[role] ?? "?"}).`
+          `Only Owner can create grants. Your role is ${ROLE_LABEL[role] ?? role}.`
         );
       }
-      if (balance < PUSH_FEE) {
+      if (balance < needed) {
         throw new Error(
-          `Org #${selectedOrg.orgId} has insufficient balance. Has ${balance}, needs ${PUSH_FEE}. Deposit first.`
+          `Org #${selectedOrg.orgId} needs ${needed} (has ${balance}). Deposit first.`
         );
       }
 
-      console.log("pre-flight ok → calling createRepo…");
-      const { result: repoId, hash } = await service.createRepo(orgIdBigint);
-      console.log("createRepo ok, repoId:", repoId.toString(), "hash:", hash);
+      console.log("pre-flight ok → calling createGrant…");
+      const { result: grantId, hash } = await service.createGrant(
+        orgIdBigint,
+        amountNum
+      );
+      console.log("createGrant ok, grantId:", grantId.toString(), "hash:", hash);
 
-      saveRepo({
-        repoId: repoId.toString(),
+      saveGrant({
+        grantId: grantId.toString(),
         orgId: selectedOrg.orgId,
-        name: draft.name,
-        description: draft.description,
-        language: draft.language,
-        visibility: draft.visibility,
-        topics: draft.topics,
+        title: draft.title.trim(),
+        description: draft.description.trim(),
+        category: draft.category,
+        amount: draft.amount,
+        currency: draft.currency,
+        deadline: draft.deadline.trim(),
+        teamSize: draft.teamSize,
+        milestones: draft.milestones
+          .filter((m) => m.title.trim())
+          .map((m) => ({
+            id: m.id,
+            title: m.title.trim(),
+            amount: Number(m.amount) || 0,
+          })),
         txHash: hash,
+        createdBy: account ?? "0x0",
         createdAt: new Date().toISOString(),
       });
 
-      toast.success(
-        `Repository #${repoId} created. Run \`dotforge init ${repoId}\` to initialize keys.`,
-        { id: toastId, duration: 6000 }
-      );
-      navigate("/repositories");
+      toast.success(`Grant #${grantId} created`, { id: toastId });
+      navigate("/grants");
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to create repository";
-      console.error("[NewRepository] failed:", err);
+        err instanceof Error ? err.message : "Failed to create grant";
+      console.error("[NewGrant] createGrant failed:", err);
       toast.error(message, { id: toastId });
     } finally {
       console.groupEnd();
@@ -136,7 +158,7 @@ export default function NewRepository() {
   };
 
   const handleCancel = () => {
-    navigate("/repositories");
+    navigate("/grants");
   };
 
   return (
@@ -155,7 +177,7 @@ export default function NewRepository() {
         <Button
           size="small"
           startIcon={<ArrowBack sx={{ fontSize: 16 }} />}
-          onClick={() => navigate("/repositories")}
+          onClick={() => navigate("/grants")}
           sx={{
             textTransform: "none",
             color: "text.secondary",
@@ -164,14 +186,14 @@ export default function NewRepository() {
             "&:hover": { color: "#FFFFFF", backgroundColor: "transparent" },
           }}
         >
-          Back to repositories
+          Back to grants
         </Button>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Create repository
+          Create grant
         </Typography>
         <Typography variant="body1" sx={{ color: "text.secondary" }}>
-          Register a new repository under one of your organizations. The
-          contract assigns a numeric repository ID on success.
+          Allocate funds from an organization's treasury to sponsor work.
+          Grants are identified by a numeric ID assigned by the contract.
         </Typography>
       </Box>
 
@@ -194,7 +216,7 @@ export default function NewRepository() {
               Wallet required
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Connect your wallet to submit the createRepo transaction.
+              Connect your wallet to submit the createGrant transaction.
             </Typography>
           </Box>
           <Button
@@ -229,7 +251,8 @@ export default function NewRepository() {
               No organizations yet
             </Typography>
             <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Repositories live under an organization. Create one first.
+              Grants are funded by an organization's treasury. Create an
+              organization first.
             </Typography>
           </Box>
           <Button
@@ -259,7 +282,7 @@ export default function NewRepository() {
             border: `1px solid ${alpha("#FFFFFF", 0.06)}`,
           }}
         >
-          <RepositoryForm
+          <GrantForm
             draft={draft}
             orgs={orgs}
             onChange={setDraft}
@@ -270,7 +293,7 @@ export default function NewRepository() {
           />
         </Box>
 
-        <RepositoryPreview draft={draft} org={selectedOrg} />
+        <GrantPreview draft={draft} org={selectedOrg} />
       </Box>
     </Box>
   );

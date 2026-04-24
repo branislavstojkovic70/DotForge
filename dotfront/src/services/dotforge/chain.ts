@@ -15,6 +15,6 @@ export const polkadotHubTestnet = defineChain({
 });
 
 export const DOTFORGE_ADDRESS: Address =
-  "0x9468ed655c0da9898ed0885cd4557f7906bc3a30";
+  "0x5a34a12dd68cc6c56565f87f10c3173e808ee8be";
 
 export const chainIdHex = `0x${POLKADOT_HUB_TESTNET_ID.toString(16)}`;

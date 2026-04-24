@@ -16,6 +16,7 @@ import {
   CallSplit,
   ContentCopy,
   FileCopyOutlined,
+  History,
   Launch,
   Lock,
   MergeType,
@@ -23,6 +24,7 @@ import {
   Public,
   StarBorder,
   Tag,
+  Terminal,
 } from "@mui/icons-material";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -57,6 +59,9 @@ export default function RepositoryDetail() {
 
   const [onChainOrgId, setOnChainOrgId] = useState<bigint | null>(null);
   const [onChainError, setOnChainError] = useState<string | null>(null);
+  const [latestCommit, setLatestCommit] = useState<bigint | null>(null);
+  const [latestCommitLoading, setLatestCommitLoading] = useState(false);
+  const [latestCommitError, setLatestCommitError] = useState<string | null>(null);
 
   const repository = useMemo<RepoDetailType | undefined>(
     () => allRepositories.find((r) => r.id === id),
@@ -110,6 +115,35 @@ export default function RepositoryDetail() {
         if (!cancelled) {
           setOnChainError(err instanceof Error ? err.message : "Failed to read on-chain org");
         }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isChain, id, service]);
+
+  useEffect(() => {
+    if (!isChain || !id) {
+      setLatestCommit(null);
+      setLatestCommitError(null);
+      return;
+    }
+    let cancelled = false;
+    setLatestCommitLoading(true);
+    setLatestCommitError(null);
+    service
+      .getBranch(BigInt(id), "main")
+      .then((cid) => {
+        if (!cancelled) setLatestCommit(cid);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLatestCommitError(
+            err instanceof Error ? err.message : "Failed to read latest commit"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLatestCommitLoading(false);
       });
     return () => {
       cancelled = true;
@@ -614,6 +648,106 @@ export default function RepositoryDetail() {
               />
             )}
           </InfoPanel>
+
+          {isChain && (
+            <InfoPanel
+              title="Latest commit"
+              subtitle={`Anchored on-chain via getBranch(repoId, "main")`}
+            >
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: 2,
+                  backgroundColor: "#141414",
+                  border: `1px solid ${alpha("#FFFFFF", 0.06)}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <History sx={{ fontSize: 16, color: "text.secondary" }} />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    flex: 1,
+                    fontFamily: "monospace",
+                    color: latestCommitError ? "#FF5252" : "text.secondary",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {latestCommitLoading
+                    ? "Loading…"
+                    : latestCommitError
+                      ? "Read failed"
+                      : latestCommit === null || latestCommit === 0n
+                        ? "No commits yet"
+                        : `0x${latestCommit.toString(16).padStart(16, "0")}`}
+                </Typography>
+                {latestCommit !== null && latestCommit !== 0n && (
+                  <Tooltip title="Copy commit hash">
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        copy(
+                          `0x${latestCommit.toString(16).padStart(16, "0")}`,
+                          "Commit hash"
+                        )
+                      }
+                      sx={{ color: "text.secondary" }}
+                    >
+                      <ContentCopy sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+
+              <Box
+                sx={{
+                  p: 1.25,
+                  borderRadius: 2,
+                  backgroundColor: "#141414",
+                  border: `1px solid ${alpha("#58AD95", 0.25)}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <Terminal sx={{ fontSize: 16, color: "#58AD95" }} />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    flex: 1,
+                    fontFamily: "monospace",
+                    color: "#F5F5F5",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {`dotforge pull ${repository.id} main`}
+                </Typography>
+                <Tooltip title="Copy command">
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      copy(`dotforge pull ${repository.id} main`, "Command")
+                    }
+                    sx={{ color: "text.secondary" }}
+                  >
+                    <ContentCopy sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{ color: "text.secondary", display: "block" }}
+              >
+                Run the DotForge CLI to fetch the latest encrypted commit from IPFS.
+              </Typography>
+            </InfoPanel>
+          )}
 
           <InfoPanel title="Clone">
             <Box
